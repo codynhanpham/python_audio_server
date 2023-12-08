@@ -18,6 +18,10 @@ if not os.path.exists(f"bat_files/{HOST}_{PORT}"):
 
 count = 0
 for file in os.listdir("audio"):
+    # if not end in .wav or .mp3, skip
+    if not file.endswith(".wav") and not file.endswith(".mp3"):
+        continue
+    
     file_name = file.split(".")[0]
     with open(f"bat_files/{HOST}_{PORT}/{file_name}.bat", "w") as bat_file:
         bat_file.write(f"curl -X GET http://{HOST}:{PORT}/play/{file_name}")
