@@ -3,30 +3,14 @@ from dotenv import load_dotenv
 load_dotenv()
 from flask import Flask, jsonify
 from waitress import serve
-from pydub import AudioSegment
 from pydub.playback import play
 import time
 import csv
 
-# a function to load and process audio files in audio/ directory
-def load_audio():
-    print("Loading audio files...")
-    
-    audio = {}
-    for filename in os.listdir("audio/"):
-        if filename.endswith(".wav") or filename.endswith(".mp3"):
-            name = filename.split(".")[0]
-            audio[name] = {
-                "name": name,
-                "filename": f"audio/{filename}",
-                "audio": AudioSegment.from_file(f"audio/{filename}")
-            }
+import utils as utils
 
-    print(f"Loaded {len(audio)} audio files")
-    return audio
 
-AUDIO = load_audio()
-
+AUDIO = utils.load_audio()
 
 # instantiate the app
 app = Flask(__name__)
@@ -37,6 +21,7 @@ print(f"New log file started: {current_log_file}")
 @app.route('/ping', methods=['GET'])
 def ping_pong():
     return jsonify('pong!'), 200
+
 
 # route to /startnewlog to start a new log file
 @app.route('/startnewlog', methods=['GET'])
@@ -78,6 +63,36 @@ def play_audio(name):
             logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
             logwriter.writerow([timestart, name, "error"])
         return jsonify(message=str(e)), 500
+
+
+# route to /tone/<frequency>/<duration>/<volume>/<sample_rate> to generate a tone and play it
+@app.route('/tone/<frequency>/<duration>/<volume>/<sample_rate>', methods=['GET'])
+def play_tone(frequency, duration, volume, sample_rate):
+    # create logs/ directory if it doesn't exist
+    if not os.path.exists("logs/"):
+        os.makedirs("logs/")
+
+    # create the tone
+    tone = utils.create_tone(frequency, duration, volume, sample_rate)
+    try:
+        print(f"Started Tone: {frequency} Hz, {duration} ms, {volume} dB, @ {sample_rate} Hz...")
+        timestart = time.time_ns()
+        play(tone)
+        print("Tone Played")
+
+        # write to log file
+        with open("logs/" + current_log_file, 'a', newline='') as csvfile:
+            logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            logwriter.writerow([timestart, f"{frequency} Hz, {duration} ms, {volume} dB, @ {sample_rate} Hz", "success"])
+        return jsonify(message="Tone Played Successfully"), 200
+    except Exception as e:
+        print(f"Error: {e}")
+        # write to log file
+        with open("logs/" + current_log_file, 'a', newline='') as csvfile:
+            logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            logwriter.writerow([timestart, f"{frequency} Hz, {duration} ms, {volume} dB, @ {sample_rate} Hz", "error"])
+        return jsonify(message=str(e)), 500
+
 
 if __name__ == '__main__':
     PORT = os.getenv("PORT") or 5055
