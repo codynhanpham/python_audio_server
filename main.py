@@ -30,7 +30,7 @@ AUDIO = load_audio()
 
 # instantiate the app
 app = Flask(__name__)
-current_log_file = os.getenv("LOGFILE_PREFIX") + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
+current_log_file = (os.getenv("LOGFILE_PREFIX") or "log_") + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
 print(f"New log file started: {current_log_file}")
 
 # ping route to check if server is up
@@ -80,6 +80,6 @@ def play_audio(name):
         return jsonify(message=str(e)), 500
 
 if __name__ == '__main__':
-    PORT = os.getenv("PORT")
+    PORT = os.getenv("PORT") or 5055
     print("Serving app at http://127.0.0.1:" + PORT + "/")
     serve(app, host='0.0.0.0', port=PORT)

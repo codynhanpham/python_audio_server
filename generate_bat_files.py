@@ -11,7 +11,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 HOST = input("Enter host IP address: ")
-PORT = os.getenv("PORT")
+if not HOST:
+    HOST = "localhost"
+PORT = os.getenv("PORT") or 5055
 
 if not os.path.exists(f"bat_files/{HOST}_{PORT}"):
     os.makedirs(f"bat_files/{HOST}_{PORT}")
