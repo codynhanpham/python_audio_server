@@ -2,7 +2,6 @@
 # defaults: 440 Hz, 100 ms, 60 dB, 44100 Hz
 
 import os
-import time
 import csv
 
 import numpy as np
