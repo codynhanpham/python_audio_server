@@ -5,26 +5,29 @@ import numpy as np
 # a function to load and process audio files in audio/ directory
 def load_audio():
     print("Loading audio files...")
+
+    # if audio/ directory doesn't exist, show a warning and return an empty dict
+    if not os.path.exists("audio/"):
+        print("No audio files found.")
+        return {}
     
     audio = {}
     for filename in os.listdir("audio/"):
         if filename.endswith(".wav") or filename.endswith(".mp3"):
-            name = filename.split(".")[0]
-            audio[name] = {
-                "name": name,
+            audio[filename] = {
+                "name": filename,
                 "filename": f"audio/{filename}",
                 "audio": AudioSegment.from_file(f"audio/{filename}")
             }
 
-    print(f"Loaded {len(audio)} audio files")
+    print(f"Loaded {len(audio)} audio files to RAM")
     return audio
+
+
 
 # Generate tones specified in a csv file: frequency (Hz), duration (ms), volume (dB), and sample rate (Hz)
 # defaults: 440 Hz, 100 ms, 60 dB, 44100 Hz
-
-
-
-def create_tone(frequency=440, duration=100, volume=60, sample_rate=44100):
+def create_tone(frequency=440, duration=100, volume=60, sample_rate=96000):
     # create a tone and convert to the pydub audio segment format
     
     # parse the args and validate their types: freq: float, duration: int, volume: float, sample_rate: int

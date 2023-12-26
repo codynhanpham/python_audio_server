@@ -1,26 +1,31 @@
 import os
+import csv
 from dotenv import load_dotenv
 load_dotenv()
 from flask import Flask, jsonify
 from waitress import serve
 from pydub.playback import play
+
 import time
-import csv
+if not hasattr(time, 'time_ns'):
+    time.time_ns = lambda: int(time.time() * 1e9)
 
 import utils as utils
+
+# instantiate the app
+app = Flask(__name__)
 
 
 AUDIO = utils.load_audio()
 
-# instantiate the app
-app = Flask(__name__)
+
 current_log_file = (os.getenv("LOGFILE_PREFIX") or "log_") + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
 print(f"New log file started: {current_log_file}")
 
 # ping route to check if server is up
 @app.route('/ping', methods=['GET'])
-def ping_pong():
-    return jsonify('pong!'), 200
+def ping():
+    return jsonify(message="pong"), 200
 
 
 # route to /startnewlog to start a new log file
@@ -37,8 +42,13 @@ def start_new_log():
 def play_audio(name):
     if not name:
         return jsonify(message="No name provided"), 400
+    
+    # if AUDIO is an empty dict, return 404 error
+    if not AUDIO:
+        return jsonify(message="No audio file (.wav or .mp3) in the ./audio/ folder."), 404
+
     if name not in AUDIO or not AUDIO[name]["audio"]:
-        return jsonify(message="Invalid name"), 400
+        return jsonify(message=f"Audio file '{name}' not found. Navigate to /list to see the available audio files and playlists."), 404
     
     # create logs/ directory if it doesn't exist
     if not os.path.exists("logs/"):
@@ -46,10 +56,10 @@ def play_audio(name):
 
     song = AUDIO[name]["audio"]
     try:
-        print(f"Started Audio: {name}...")
         timestart = time.time_ns()
+        print(f"{timestart}: Started {name}...")
         play(song)
-        print("Audio Played")
+        print(f"Finished (job at {timestart})")
 
         # write to log file
         with open("logs/" + current_log_file, 'a', newline='') as csvfile:
@@ -96,5 +106,5 @@ def play_tone(frequency, duration, volume, sample_rate):
 
 if __name__ == '__main__':
     PORT = os.getenv("PORT") or 5055
-    print(f"Serving app at http://127.0.0.1: {PORT}/")
+    print(f"Serving app at http://127.0.0.1:{PORT}/")
     serve(app, host='0.0.0.0', port=PORT)
