@@ -70,7 +70,8 @@ def play_audio(name):
     try:
         timestart = time.time_ns()
         print(f"\x1b[2m\x1b[38;5;8m    {timestart}: Started {name}...\x1b[0m")
-        play(song)
+        with utils.ignore_stderr():
+            play(song)
         print(f"\x1b[2m\x1b[38;5;8m    Finished (job at {timestart})\x1b[0m")
 
         # write to log file
@@ -107,7 +108,8 @@ def play_tone(frequency, duration, volume, sample_rate):
         timestart = time.time_ns()
         # print(f"Started Tone: {frequency} Hz, {duration} ms, {volume} dB, @ {sample_rate} Hz...")
         print(f"\x1b[2m\x1b[38;5;8m    {timestart}: Started Tone: {frequency}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz ...\x1b[0m")
-        play(tone)
+        with utils.ignore_stderr():
+            play(tone)
         print(f"\x1b[2m\x1b[38;5;8m    Finished (job at {timestart})\x1b[0m")
 
         # write to log file

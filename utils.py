@@ -2,6 +2,23 @@ from pydub import AudioSegment
 import os
 import numpy as np
 import socket
+import contextlib
+import os
+import sys
+
+@contextlib.contextmanager
+def ignore_stderr():
+    devnull = os.open(os.devnull, os.O_WRONLY)
+    old_stderr = os.dup(2)
+    sys.stderr.flush()
+    os.dup2(devnull, 2)
+    os.close(devnull)
+    try:
+        yield
+    finally:
+        os.dup2(old_stderr, 2)
+        os.close(old_stderr)
+
  
 def get_local_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -69,11 +86,11 @@ def create_tone(frequency=440, duration=100, volume=60, sample_rate=96000):
         print("Sample rate is invalid. Using default value (96000 Hz).")
 
     # create the tone
-    t = np.linspace(0, duration/1000, int(sample_rate * (duration/1000)))
+    t = np.linspace(0, duration/1000, int(sample_rate * (duration/1000)), dtype=np.float32)
     y = np.sin(frequency * 2 * np.pi * t)
     y *= 10**(volume/20) # convert dB to amplitude
-    y *= 32767 / np.max(np.abs(y)) # normalize to 16-bit range
-    y = y.astype(np.int16)
+    y /= np.max(np.abs(y)) # normalize to 1.0 range
+    y = y.astype(np.float32)
 
     # convert to audio segment
     tone = AudioSegment(y.tobytes(), frame_rate=sample_rate, sample_width=2, channels=1)
