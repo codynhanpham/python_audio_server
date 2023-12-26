@@ -96,5 +96,5 @@ def play_tone(frequency, duration, volume, sample_rate):
 
 if __name__ == '__main__':
     PORT = os.getenv("PORT") or 5055
-    print("Serving app at http://127.0.0.1:" + PORT + "/")
+    print(f"Serving app at http://127.0.0.1: {PORT}/")
     serve(app, host='0.0.0.0', port=PORT)
