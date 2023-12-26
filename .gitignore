@@ -9,3 +9,5 @@ bat_files
 *.mp3
 *.spec
 *.zip
+
+python_audio_server

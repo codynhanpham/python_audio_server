@@ -19,9 +19,9 @@ RUN apt-get update && apt-get install -y \
     liblzma-dev \
     tk-dev \
     libffi-dev \
-    libpython3.6-dev \
+    portaudio19-dev \
     libasound2-dev \
-    git 
+    git
 
 # Download, compile and install Python 3.6
 RUN wget https://www.python.org/ftp/python/3.6.3/Python-3.6.3.tgz && \
@@ -36,6 +36,9 @@ RUN apt-get install -y python3-pip
 
 # Upgrade pip and install setuptools and wheel
 RUN pip3 install --upgrade setuptools wheel
+
+# Install PyAudio
+RUN apt-get install -y python3-pyaudio
 
 # Install virtualenv
 RUN pip3 install virtualenv

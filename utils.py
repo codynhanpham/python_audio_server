@@ -1,10 +1,23 @@
 from pydub import AudioSegment
 import os
 import numpy as np
+import socket
+ 
+def get_local_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # any IP address will do...
+        s.connect(('192.255.255.255', 1))
+        IP = s.getsockname()[0]
+    except:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
 
 # a function to load and process audio files in audio/ directory
 def load_audio():
-    print("Loading audio files...")
+    print("Preloading audio files in ./audio/*.wav ...")
 
     # if audio/ directory doesn't exist, show a warning and return an empty dict
     if not os.path.exists("audio/"):
@@ -20,7 +33,7 @@ def load_audio():
                 "audio": AudioSegment.from_file(f"audio/{filename}")
             }
 
-    print(f"Loaded {len(audio)} audio files to RAM")
+    print(f"Preloaded {len(audio)} audio files to RAM\n")
     return audio
 
 
@@ -52,18 +65,14 @@ def create_tone(frequency=440, duration=100, volume=60, sample_rate=96000):
     try:
         sample_rate = int(sample_rate)
     except:
-        sample_rate = 44100
-        print("Sample rate is invalid. Using default value (44100 Hz).")
+        sample_rate = 96000
+        print("Sample rate is invalid. Using default value (96000 Hz).")
 
     # create the tone
-    samples = int(sample_rate * duration / 1000)
-    # calculate the x values
-    x = np.arange(samples)
-    # calculate the y values
-    y = np.sin(2 * np.pi * frequency * x / sample_rate)
-    # scale the y values
-    y *= 10 ** (volume / 20)
-    # convert to 16-bit data
+    t = np.linspace(0, duration/1000, int(sample_rate * (duration/1000)))
+    y = np.sin(frequency * 2 * np.pi * t)
+    y *= 10**(volume/20) # convert dB to amplitude
+    y *= 32767 / np.max(np.abs(y)) # normalize to 16-bit range
     y = y.astype(np.int16)
 
     # convert to audio segment
