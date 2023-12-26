@@ -11,7 +11,7 @@ numpy==1.19.5
 pefile==2023.2.7
 PyAudio==0.2.11
 pydub==0.25.1
-PyInstaller==3.6
+PyInstaller==5.13.1
 python-dotenv==0.20.0
 pywin32-ctypes==0.2.2
 typing-extensions==4.1.1
