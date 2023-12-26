@@ -85,12 +85,16 @@ def create_tone(frequency=440, duration=100, volume=60, sample_rate=96000):
         sample_rate = 96000
         print("Sample rate is invalid. Using default value (96000 Hz).")
 
-    # create the tone
-    t = np.linspace(0, duration/1000, int(sample_rate * (duration/1000)), dtype=np.float32)
-    y = np.sin(frequency * 2 * np.pi * t)
-    y *= 10**(volume/20) # convert dB to amplitude
-    y /= np.max(np.abs(y)) # normalize to 1.0 range
-    y = y.astype(np.float32)
+    # create the tone at the specified frequency and sample rate
+    samples = int(sample_rate * duration / 1000)
+    # calculate the x values
+    x = np.arange(samples)
+    # calculate the y values
+    y = np.sin(2 * np.pi * frequency * x / sample_rate)
+    # scale the y values
+    y *= 10 ** (volume / 20)
+    # convert to 16-bit data
+    y = y.astype(np.int16)
 
     # convert to audio segment
     tone = AudioSegment(y.tobytes(), frame_rate=sample_rate, sample_width=2, channels=1)
