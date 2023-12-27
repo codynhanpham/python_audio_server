@@ -10,12 +10,17 @@ from scipy.io import wavfile
 def main():
     output_dir = "tones/"
 
+    print("Generate tones specified in a csv file: frequency (Hz), duration (ms), volume (dB), and sample rate (Hz). The .wav files will be saved in the ./tones/ directory.")
+    print("Example csv file:")
+    print("    440,100,60,44100")
+    print("    880,100,60,192000\n")
 
     # user input for the csv file
     csv_file = input("Enter the csv file path: ")
     # validate csv file
     if not os.path.isfile(csv_file):
         print("Invalid csv file. The program will now restart.")
+        print("\n\n\n----------------------------------------\n\n\n")
         return main()
     
     data = []
@@ -24,35 +29,32 @@ def main():
         reader = csv.reader(csvfile, delimiter=',', quotechar='"')
         # there should be 4 columns: frequency (Hz), duration (ms), volume (dB), and sample rate (Hz)
         # no header row
-        # if column is empty or invalid, use default value
-
-        # default values
-        frequency = 440
-        duration = 100
-        volume = 60
-        sample_rate = 44100
 
         # iterate through each row, validate, and add to data
         for row in reader:
             try:
                 frequency = float(row[0])
             except:
-                print(f"Row {reader.line_num}: Frequency is invalid. Using default value.")
+                print(f"Row {reader.line_num}: Frequency is invalid. Skip this row.")
+                continue
 
             try:
                 duration = int(row[1])
             except:
-                print(f"Row {reader.line_num}: Duration is invalid. Using default value.")
+                print(f"Row {reader.line_num}: Duration is invalid. Skip this row.")
+                continue
 
             try:
                 volume = float(row[2])
             except:
-                print(f"Row {reader.line_num}: Volume is invalid. Using default value.")
+                print(f"Row {reader.line_num}: Volume is invalid. Skip this row.")
+                continue
 
             try:
                 sample_rate = int(row[3])
             except:
-                print(f"Row {reader.line_num}: Sample rate is invalid. Using default value.")
+                print(f"Row {reader.line_num}: Sample rate is invalid. Skip this row.")
+                continue
 
             # add to data
             data.append([frequency, duration, volume, sample_rate])
@@ -88,3 +90,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+    print()
+    input("Press Enter to exit...")

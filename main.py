@@ -1,4 +1,11 @@
 import os
+import sys
+# need to add path to resource (pyinstaller) for ffmpeg and ffprobe
+sys.path.append(getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__))))
+os.environ["PATH"] += os.pathsep + getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+
+import utils as utils
+
 import csv
 from dotenv import load_dotenv
 load_dotenv()
@@ -10,7 +17,6 @@ import time
 if not hasattr(time, 'time_ns'):
     time.time_ns = lambda: int(time.time() * 1e9)
 
-import utils as utils
 
 # instantiate the app
 app = Flask(__name__)
@@ -68,6 +74,8 @@ def play_audio(name):
 
     song = AUDIO[name]["audio"]
     try:
+        print(f"\x1b[2m\x1b[38;5;8m    Source's Sample Rate: {song.frame_rate} Hz")
+
         timestart = time.time_ns()
         print(f"\x1b[2m\x1b[38;5;8m    {timestart}: Started {name}...\x1b[0m")
         with utils.ignore_stderr():
@@ -87,9 +95,9 @@ def play_audio(name):
         with open("logs/" + current_log_file, 'a', newline='') as csvfile:
             logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
             logwriter.writerow([timestart, name, "error"])
-
         print(f"\x1b[2m\x1b[38;5;8m    Appended (error) to log file: ./logs/{current_log_file}\x1b[0m")
-        return jsonify(message=str(e)), 500
+
+        return jsonify(error=str(e), message="The server can only play audio at the following sampling rates: 8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000 (Hz). If the error is about weird sample rates, please double check your audio file."), 500
 
 
 # route to /tone/<frequency>/<duration>/<volume>/<sample_rate> to generate a tone and play it
@@ -127,10 +135,11 @@ def play_tone(frequency, duration, volume, sample_rate):
             logwriter.writerow([timestart, f"{frequency} Hz, {duration} ms, {volume} dB, @ {sample_rate} Hz", "error"])
         print(f"\x1b[2m\x1b[38;5;8m    Appended (error) to log file: ./logs/{current_log_file}\x1b[0m")
 
-        return jsonify(message=str(e)), 500
+        return jsonify(error=str(e), message="The server can only play audio at the following sampling rates: 8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000 (Hz). If the error is about weird sample rates, please double check your audio file."), 500
 
 
 if __name__ == '__main__':
     PORT = os.getenv("PORT") or 5055
-    print(f"Serving app at http://{IP_ADDRESS}:{PORT}/\n\n")
+    print(f"Serving app at http://{IP_ADDRESS}:{PORT}/\n")
+    print("(Hit Ctrl+C to quit at anytime)\n\n")
     serve(app, host='0.0.0.0', port=PORT)

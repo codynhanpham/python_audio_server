@@ -3,7 +3,7 @@
 Play audio on host computer when a remote client makes an HTTP request. The audio start timestamp is logged for future reference.
 
 ## Installation
-There are 2 options to install the server: Windows executable and Python.
+There are 2 options to install the server: Pre-built binaries (Windows 10+ and Linux 14.04+) and Python.
 
 ### Windows Executable
 1. Download the latest release for Windows machine from the [releases page](https://github.com/codynhanpham/python_audio_server/releases/). There should be 2 executables: `audio_server.exe` and `generate_bat_files.exe`, along with a folder `audio/` where you would put your audio files. The 3 files/folders must be in the same directory.
