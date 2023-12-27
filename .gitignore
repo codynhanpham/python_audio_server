@@ -4,7 +4,6 @@ build
 dist
 logs
 bat_files
-*.exe
 *.wav
 *.mp3
 *.spec

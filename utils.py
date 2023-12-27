@@ -19,6 +19,11 @@ def ignore_stderr():
         os.dup2(old_stderr, 2)
         os.close(old_stderr)
 
+
+def resource_path(relative_path):
+    base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_path, relative_path)
+
  
 def get_local_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -31,6 +36,7 @@ def get_local_ip():
     finally:
         s.close()
     return IP
+
 
 # a function to load and process audio files in audio/ directory
 def load_audio():
