@@ -6,6 +6,8 @@ import contextlib
 import os
 import sys
 
+PLAYLIST = {}
+
 @contextlib.contextmanager
 def ignore_stderr():
     devnull = os.open(os.devnull, os.O_WRONLY)
@@ -44,12 +46,13 @@ def load_audio():
 
     # if audio/ directory doesn't exist, show a warning and return an empty dict
     if not os.path.exists("audio/"):
-        print("No audio files found.")
+        print("\x1b[2m\x1b[31    Error: Audio folder not found. Play functions will not work for this session.\x1b[0m")
         return {}
     
     audio = {}
+    audio_types = [".wav", ".mp3", ".flac", ".ogg"]
     for filename in os.listdir("audio/"):
-        if filename.endswith(".wav") or filename.endswith(".mp3"):
+        if filename.endswith(tuple(audio_types)):
             audio[filename] = {
                 "name": filename,
                 "filename": f"audio/{filename}",
@@ -60,6 +63,62 @@ def load_audio():
     return audio
 
 
+# a function to load and validate + process playlist files in playlists/ directory
+def load_and_validate_playlists(playlist_folder_path, AUDIO):
+    # if no playlist folder is found, skip loading playlists
+    if not os.path.exists(playlist_folder_path):
+        return {}
+
+    print("Loading playlist files in ./playlists/*.txt ...")
+
+    # Playlist: Key is the name of the file.txt, Value is a Vec of {type: "audio" or "pause", value: "filename" or "pause_duration in ms"}
+
+    playlists = {}
+    for filename in os.listdir(playlist_folder_path):
+        if not filename.endswith(".txt"):
+            continue
+
+        playlist = []
+        error_occurred = False
+        with open(f"{playlist_folder_path}/{filename}", "r") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("#") or line == "":
+                    continue
+
+                if line.startswith("pause_") and line.endswith("ms"):
+                    # pause format is pause_{duration in ms}ms
+                    try:
+                        int(line.split("_")[1][:-2])
+                        playlist.append({
+                        "type": "pause",
+                        "value": int(line.split("_")[1][:-2])
+                    })
+                    except:
+                        parsed = line.split("_")[1][:-2]
+                        print(f"\x1b[2m\x1b[31m    Error: Pause duration \"{parsed}\" is not a valid integer\x1b[0m")
+                        print(f"\x1b[2m    Ignoring playlist \"{filename}\"...\n\x1b[0m")
+                        error_occurred = True
+                        break
+                elif line in AUDIO:
+                    playlist.append({
+                        "type": "audio",
+                        "value": line
+                    })
+                else:
+                    print(f"\x1b[2m\x1b[31m    Error: Audio file \"{line}\" not found\x1b[0m")
+                    print("\x1b[2m    Please make sure the audio file exists in the \"audio\" folder and try again.\x1b[0m")
+                    print(f"\x1b[2m    Ignoring playlist \"{filename}\"...\n\x1b[0m");
+                    error_occurred = True
+                    break
+
+        if error_occurred or not playlist:
+            continue
+
+        playlists[filename] = playlist
+
+    print(f"Loaded {len(playlists)} playlist files\n")
+    return playlists
 
 # Generate tones specified in a csv file: frequency (Hz), duration (ms), volume (dB), and sample rate (Hz)
 # defaults: 440 Hz, 100 ms, 60 dB, 44100 Hz

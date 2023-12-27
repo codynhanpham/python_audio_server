@@ -6,12 +6,10 @@ os.environ["PATH"] += os.pathsep + getattr(sys, '_MEIPASS', os.path.dirname(os.p
 
 import utils as utils
 
-import csv
 from dotenv import load_dotenv
 load_dotenv()
-from flask import Flask, jsonify
+from flask import Flask, jsonify, g
 from waitress import serve
-from pydub.playback import play
 
 import time
 if not hasattr(time, 'time_ns'):
@@ -26,18 +24,24 @@ print("The source code for this project is available at https://github.com/codyn
 
 IP_ADDRESS = utils.get_local_ip()
 AUDIO = utils.load_audio()
-
+utils.PLAYLIST = utils.load_and_validate_playlists("playlists/", AUDIO)
 
 current_log_file = (os.getenv("LOGFILE_PREFIX") or "log_") + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
-print(f"New log file started: {current_log_file}\n")
-
-# ping route to check if server is up
-@app.route('/ping', methods=['GET'])
-def ping():
-    return jsonify(message="pong"), 200
+print(f"New log file started: ./logs/{current_log_file}\n")
 
 
-# route to /startnewlog to start a new log file
+# Call this function before every request
+@app.before_request
+def before_request():
+    g.AUDIO = AUDIO
+    g.PLAYLIST = utils.PLAYLIST
+    global current_log_file
+    g.current_log_file = current_log_file
+    g.IP_ADDRESS = IP_ADDRESS
+    g.PORT = os.getenv("PORT") or 5055
+
+
+# This route must be in the main file, to be able to change the global variable current_log_file
 @app.route('/startnewlog', methods=['GET'])
 def start_new_log():
     time_ns = time.time_ns()
@@ -45,97 +49,31 @@ def start_new_log():
 
     global current_log_file
     current_log_file = os.getenv("LOGFILE_PREFIX") + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
+    
     print(f"New log file started: {current_log_file}")
     return jsonify(message=f"Started new log file: ./logs/{current_log_file}"), 200
 
 
+# ping route to check if server is up
+from routes.ping import ping_blueprint
+app.register_blueprint(ping_blueprint)
+
+# info/documentation at /, and list of audio files and playlists at /list
+from routes.info import info_blueprint
+app.register_blueprint(info_blueprint)
+
 # route to /play to play audio
-@app.route('/play/<name>', methods=['GET'])
-def play_audio(name):
-    time_ns = time.time_ns()
-    print(f"{time_ns}: Received /play/{name}")
-
-    if not name:
-        print(f"\x1b[2m\x1b[31m    No name provided\x1b[0m")
-        return jsonify(message="No name provided"), 400
-    
-    # if AUDIO is an empty dict, return 404 error
-    if not AUDIO:
-        print(f"\x1b[2m\x1b[31m    No audio files found\x1b[0m")
-        return jsonify(message="No audio file (.wav or .mp3) in the ./audio/ folder."), 404
-
-    if name not in AUDIO or not AUDIO[name]["audio"]:
-        print(f"\x1b[2m\x1b[31m    Audio file '{name}' not found\x1b[0m")
-        return jsonify(message=f"Audio file '{name}' not found. Navigate to /list to see the available audio files and playlists."), 404
-    
-    # create logs/ directory if it doesn't exist
-    if not os.path.exists("logs/"):
-        os.makedirs("logs/")
-
-    song = AUDIO[name]["audio"]
-    try:
-        print(f"\x1b[2m\x1b[38;5;8m    Source's Sample Rate: {song.frame_rate} Hz")
-
-        timestart = time.time_ns()
-        print(f"\x1b[2m\x1b[38;5;8m    {timestart}: Started {name}...\x1b[0m")
-        with utils.ignore_stderr():
-            play(song)
-        print(f"\x1b[2m\x1b[38;5;8m    Finished (job at {timestart})\x1b[0m")
-
-        # write to log file
-        with open("logs/" + current_log_file, 'a', newline='') as csvfile:
-            logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            logwriter.writerow([timestart, name, "success"])
-
-        print(f"\x1b[2m\x1b[38;5;8m    Appended to log file: ./logs/{current_log_file}\x1b[0m")
-        return jsonify(message=f"At {timestart}: Played {name}"), 200
-    except Exception as e:
-        print(f"\x1b[2m\x1b[31m    Error occurred: {e}\x1b[0m")
-        # write to log file
-        with open("logs/" + current_log_file, 'a', newline='') as csvfile:
-            logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            logwriter.writerow([timestart, name, "error"])
-        print(f"\x1b[2m\x1b[38;5;8m    Appended (error) to log file: ./logs/{current_log_file}\x1b[0m")
-
-        return jsonify(error=str(e), message="The server can only play audio at the following sampling rates: 8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000 (Hz). If the error is about weird sample rates, please double check your audio file."), 500
+from routes.play import play_blueprint
+app.register_blueprint(play_blueprint)
 
 
 # route to /tone/<frequency>/<duration>/<volume>/<sample_rate> to generate a tone and play it
-@app.route('/tone/<frequency>/<duration>/<volume>/<sample_rate>', methods=['GET'])
-def play_tone(frequency, duration, volume, sample_rate):
-    time_ns = time.time_ns()
-    print(f"{time_ns}: Received /tone/{frequency}/{duration}/{volume}/{sample_rate}")
+from routes.tone import tone_blueprint
+app.register_blueprint(tone_blueprint)
 
-    # create logs/ directory if it doesn't exist
-    if not os.path.exists("logs/"):
-        os.makedirs("logs/")
-
-    # create the tone
-    tone = utils.create_tone(frequency, duration, volume, sample_rate)
-    try:
-        timestart = time.time_ns()
-        # print(f"Started Tone: {frequency} Hz, {duration} ms, {volume} dB, @ {sample_rate} Hz...")
-        print(f"\x1b[2m\x1b[38;5;8m    {timestart}: Started Tone: {frequency}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz ...\x1b[0m")
-        with utils.ignore_stderr():
-            play(tone)
-        print(f"\x1b[2m\x1b[38;5;8m    Finished (job at {timestart})\x1b[0m")
-
-        # write to log file
-        with open("logs/" + current_log_file, 'a', newline='') as csvfile:
-            logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            logwriter.writerow([timestart, f"{frequency}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz", "success"])
-        print(f"\x1b[2m\x1b[38;5;8m    Appended to log file: ./logs/{current_log_file}\x1b[0m")
-
-        return jsonify(message="Tone Played Successfully"), 200
-    except Exception as e:
-        print(f"\x1b[2m\x1b[31m    Error occurred: {e}\x1b[0m")
-        # write to log file
-        with open("logs/" + current_log_file, 'a', newline='') as csvfile:
-            logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            logwriter.writerow([timestart, f"{frequency} Hz, {duration} ms, {volume} dB, @ {sample_rate} Hz", "error"])
-        print(f"\x1b[2m\x1b[38;5;8m    Appended (error) to log file: ./logs/{current_log_file}\x1b[0m")
-
-        return jsonify(error=str(e), message="The server can only play audio at the following sampling rates: 8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000 (Hz). If the error is about weird sample rates, please double check your audio file."), 500
+# route to /playlist/create and /playlist to generate a random playlist and play it
+from routes.playlist import playlist_blueprint
+app.register_blueprint(playlist_blueprint)
 
 
 if __name__ == '__main__':
