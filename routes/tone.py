@@ -35,8 +35,7 @@ def play_tone(frequency, duration, volume, sample_rate):
     tone = utils.create_tone(frequency, duration, volume, sample_rate)
     try:
         timestart = time.time_ns()
-        # print(f"Started Tone: {frequency} Hz, {duration} ms, {volume} dB, @ {sample_rate} Hz...")
-        print(f"\x1b[2m    {timestart}: Started {frequency}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz...\x1b[0m")
+        print(f"\x1b[2m    {timestart}: Playing {frequency}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz...\x1b[0m")
         with utils.ignore_stderr():
             play(tone)
         print(f"\x1b[2m    Finished (job at {timestart})\x1b[0m")

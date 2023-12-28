@@ -47,7 +47,7 @@ def play_audio(name):
         print(f"\x1b[2m    Source's Sample Rate: {source.frame_rate} Hz")
 
         timestart = time.time_ns()
-        print(f"\x1b[2m    {timestart}: Started {name}...\x1b[0m")
+        print(f"\x1b[2m    {timestart}: Playing {name}...\x1b[0m")
         with utils.ignore_stderr():
             play(source)
         print(f"\x1b[2m    Finished (job at {timestart})\x1b[0m")
