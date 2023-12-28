@@ -1,8 +1,14 @@
 import os
 import sys
-# need to add path to resource (pyinstaller) for ffmpeg and ffprobe
-sys.path.append(getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__))))
-os.environ["PATH"] += os.pathsep + getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+def resource_path(relative_path=''):
+    base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_path, relative_path)
+sys.path.append(resource_path())
+os.environ["PATH"] += os.pathsep + resource_path()
+sys.path.append(resource_path("bin"))
+os.environ["PATH"] += os.pathsep + resource_path("bin")
+
+BASE_PATH = resource_path()
 
 import utils as utils
 
@@ -26,7 +32,7 @@ IP_ADDRESS = utils.get_local_ip()
 AUDIO = utils.load_audio()
 utils.PLAYLIST = utils.load_and_validate_playlists("playlists/", AUDIO)
 
-current_log_file = (config["LOGFILE_PREFIX"] or "log_") + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
+current_log_file = config.get("LOGFILE_PREFIX", "log_") + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
 print(f"New log file started: ./logs/{current_log_file}\n")
 
 
@@ -38,8 +44,9 @@ def before_request():
     global current_log_file
     g.current_log_file = current_log_file
     g.IP_ADDRESS = IP_ADDRESS
-    g.PORT = config["PORT"] or 5055
-    g.LOGFILE_PREFIX = config["LOGFILE_PREFIX"] or "log_"
+    g.PORT = config.get("PORT", 5055)
+    g.LOGFILE_PREFIX = config.get("LOGFILE_PREFIX", "log_")
+    g.BASE_PATH = BASE_PATH
 
 
 # This route must be in the main file, to be able to easily change the global variable current_log_file
@@ -49,7 +56,7 @@ def start_new_log():
     print(f"{time_ns}: Received /startnewlog")
 
     global current_log_file
-    current_log_file = (config["LOGFILE_PREFIX"] or "log_") + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
+    current_log_file = config.get("LOGFILE_PREFIX", "log_") + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
     
     print(f"New log file started: {current_log_file}")
     return jsonify(message=f"Started new log file: ./logs/{current_log_file}"), 200
@@ -75,9 +82,12 @@ app.register_blueprint(tone_blueprint)
 from routes.playlist import playlist_blueprint
 app.register_blueprint(playlist_blueprint)
 
+# route to /batch_files to generate batch files for all audio files and playlists
+from routes.batch_files import batch_file_blueprint
+app.register_blueprint(batch_file_blueprint)
 
 if __name__ == '__main__':
-    PORT = config["PORT"] or 5055
+    PORT = config.get("PORT", 5055)
     print(f"Serving app at http://{IP_ADDRESS}:{PORT}/\n")
     print("(Hit Ctrl+C to quit at anytime)\n\n")
     serve(app, host='0.0.0.0', port=PORT)

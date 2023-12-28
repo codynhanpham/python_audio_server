@@ -5,8 +5,6 @@ if not hasattr(time, 'time_ns'):
     time.time_ns = lambda: int(time.time() * 1e9)
 
 import csv
-from dotenv import load_dotenv
-load_dotenv()
 import hashlib
 import random
 

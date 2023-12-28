@@ -8,8 +8,6 @@ import io
 import wave
 
 import csv
-from dotenv import load_dotenv
-load_dotenv()
 
 from pydub.playback import play
 import numpy as np
