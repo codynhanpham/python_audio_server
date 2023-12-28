@@ -130,25 +130,25 @@ def create_tone(frequency=440, duration=100, volume=60, sample_rate=96000):
         frequency = float(frequency)
     except:
         frequency = 440
-        print("Frequency is invalid. Using default value (440 Hz).")
+        print("\x1b[2m\x1b[31m    Frequency is invalid. Using default value (440 Hz).")
 
     try:
         duration = int(duration)
     except:
         duration = 100
-        print("Duration is invalid. Using default value (100 ms).")
+        print("\x1b[2m\x1b[31m    Duration is invalid. Using default value (100 ms).")
     
     try:
         volume = float(volume)
     except:
         volume = 60
-        print("Volume is invalid. Using default value (60 dB).")
+        print("\x1b[2m\x1b[31m    Volume is invalid. Using default value (60 dB).")
 
     try:
         sample_rate = int(sample_rate)
     except:
         sample_rate = 96000
-        print("Sample rate is invalid. Using default value (96000 Hz).")
+        print("\x1b[2m\x1b[31m    Sample rate is invalid. Using default value (96000 Hz).")
 
     # create the tone at the specified frequency and sample rate
     samples = int(sample_rate * duration / 1000)

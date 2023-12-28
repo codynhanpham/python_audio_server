@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, g
+from flask import Blueprint, jsonify, g, request
 
 import time, os
 if not hasattr(time, 'time_ns'):
@@ -25,21 +25,24 @@ def play_tone(frequency, duration, volume, sample_rate):
 
     current_log_file = g.current_log_file
 
+    # Get the ?time= query string, else default to nothing
+    client_time = request.args.get('time') or ""
+
     # create the tone
     tone = utils.create_tone(frequency, duration, volume, sample_rate)
     try:
         timestart = time.time_ns()
         # print(f"Started Tone: {frequency} Hz, {duration} ms, {volume} dB, @ {sample_rate} Hz...")
-        print(f"\x1b[2m\x1b[38;5;8m    {timestart}: Started {frequency}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz...\x1b[0m")
+        print(f"\x1b[2m    {timestart}: Started {frequency}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz...\x1b[0m")
         with utils.ignore_stderr():
             play(tone)
-        print(f"\x1b[2m\x1b[38;5;8m    Finished (job at {timestart})\x1b[0m")
+        print(f"\x1b[2m    Finished (job at {timestart})\x1b[0m")
 
         # write to log file
         with open("logs/" + current_log_file, 'a', newline='') as csvfile:
             logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            logwriter.writerow([timestart, f"{frequency}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz", "success"])
-        print(f"\x1b[2m\x1b[38;5;8m    Appended to log file: ./logs/{current_log_file}\x1b[0m")
+            logwriter.writerow([timestart, f"{frequency}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz", "success", client_time])
+        print(f"\x1b[2m    Appended to log file: ./logs/{current_log_file}\x1b[0m")
 
         return jsonify(message=f"At {timestart} played {frequency}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz"), 200
     except Exception as e:
@@ -47,7 +50,7 @@ def play_tone(frequency, duration, volume, sample_rate):
         # write to log file
         with open("logs/" + current_log_file, 'a', newline='') as csvfile:
             logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            logwriter.writerow([timestart, f"{frequency} Hz, {duration} ms, {volume} dB, @ {sample_rate} Hz", "error"])
-        print(f"\x1b[2m\x1b[38;5;8m    Appended (error) to log file: ./logs/{current_log_file}\x1b[0m")
+            logwriter.writerow([timestart, f"{frequency} Hz, {duration} ms, {volume} dB, @ {sample_rate} Hz", "error", client_time])
+        print(f"\x1b[2m    Appended (error) to log file: ./logs/{current_log_file}\x1b[0m")
 
         return jsonify(error=str(e), message="The server can only play audio at the following sampling rates: 8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000 (Hz). If the error is about weird sample rates, please double check your audio file."), 500

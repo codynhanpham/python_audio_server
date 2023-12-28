@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, Response, request, g, send_file
+from flask import Blueprint, jsonify, request, g, send_file
 
 import time, os
 if not hasattr(time, 'time_ns'):
@@ -33,7 +33,7 @@ def create_playlist():
     try:
         file_count = int(request.args.get('file_count'))
     except (TypeError, ValueError):
-        file_count = 100
+        file_count = 10
 
     try:
         break_between_files = int(request.args.get('break_between_files'))
@@ -79,7 +79,7 @@ def create_playlist():
 
     # If no_download is true, return the playlist name
     if no_download:
-        return jsonify(message=f"Created new playlist file server-side: ./playlists/{playlist_file_name}. To play this new playlist, visit https://{IP_ADDRESS}:{PORT}/playlist/{playlist_file_name}"), 200
+        return jsonify(message=f"Created new playlist file server-side: ./playlists/{playlist_file_name}. To play this new playlist, visit http://{IP_ADDRESS}:{PORT}/playlist/{playlist_file_name}"), 200
     
     # Else, return the playlist file for download
     return send_file(f"playlists/{playlist_file_name}", as_attachment=True), 200
@@ -97,10 +97,6 @@ def play_playlist(name):
     AUDIO = g.AUDIO
     PLAYLIST = g.PLAYLIST
 
-    # the log file for playlist is separate from the main log file, and is specific to the playlist session
-    # the prefix will be the LOGFILE_PREFIX env variable (or log) + "playlist_" + the current time
-    current_log_file = (os.getenv("LOGFILE_PREFIX") or "log_") + "playlist_" + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
-
     # if AUDIO is an empty dict, return 404 error
     if not AUDIO:
         print(f"\x1b[2m\x1b[31m    No audio files found\x1b[0m")
@@ -109,10 +105,10 @@ def play_playlist(name):
     if name not in PLAYLIST:
         print(f"\x1b[2m\x1b[31m    Playlist file '{name}' not found\x1b[0m")
         return jsonify(message=f"Playlist file '{name}' not found. Navigate to /list to see the available audio files and playlists."), 404
-    
-    # create logs/ directory if it doesn't exist
-    if not os.path.exists("logs/"):
-        os.makedirs("logs/")
+
+    # the log file for playlist is separate from the main log file, and is specific to the playlist session
+    # the prefix will be the LOGFILE_PREFIX env variable (or log) + "playlist_" + the current time
+    current_log_file = (os.getenv("LOGFILE_PREFIX") or "log_") + "playlist_" + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
 
     playlist = PLAYLIST[name]
 
@@ -129,7 +125,12 @@ def play_playlist(name):
         logwriter.writerow(["timestamp_audio", "audio_filename", "status", "timestamp_client"])
 
     # The first row of the log file is the request name and timestamp + client timestamp if it exists
-    # add that later here
+    # Get the ?time= query string, else default to nothing
+    client_time = request.args.get('time') or ""
+    with open("logs/" + current_log_file, 'a', newline='') as csvfile:
+        logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        logwriter.writerow([time.time_ns(), f"Received /playlist/{name}", "success", client_time])
+    print(f"\x1b[2m    Appended request info to log file: ./logs/{current_log_file}\x1b[0m")
 
     try:
         time_ns_playback = time.time_ns()
@@ -150,7 +151,7 @@ def play_playlist(name):
                 # write to log file
                 with open("logs/" + current_log_file, 'a', newline='') as csvfile:
                     logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-                    logwriter.writerow([timestart, step["value"], "success"])
+                    logwriter.writerow([timestart, step["value"], "success", "N/A"])
                 print(f"\x1b[2m    Appended to log file: ./logs/{current_log_file}\x1b[0m")
 
                 count += 1
@@ -164,7 +165,7 @@ def play_playlist(name):
                 # write to log file
                 with open("logs/" + current_log_file, 'a', newline='') as csvfile:
                     logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-                    logwriter.writerow([timestart, f"pause_{step['value']}ms", "success"])
+                    logwriter.writerow([timestart, f"pause_{step['value']}ms", "success", "N/A"])
                 print(f"\x1b[2m    Appended to log file: ./logs/{current_log_file}\x1b[0m")
 
                 count += 1
@@ -180,7 +181,7 @@ def play_playlist(name):
         # write to log file
         with open("logs/" + current_log_file, 'a', newline='') as csvfile:
             logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            logwriter.writerow([time.time_ns(), name, "error"])
+            logwriter.writerow([time.time_ns(), name, "playlist playback error", "N/A"])
         print(f"\x1b[2m;5;8m    Appended (error) to log file: ./logs/{current_log_file}\x1b[0m")
 
         return jsonify(error=str(e), message="The server can only play audio at the following sampling rates: 8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000 (Hz). If the error is about weird sample rates, please double check your audio file."), 500
