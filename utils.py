@@ -46,7 +46,7 @@ def load_audio():
 
     # if audio/ directory doesn't exist, show a warning and return an empty dict
     if not os.path.exists("audio/"):
-        print("\x1b[2m\x1b[31    Error: Audio folder not found. Play functions will not work for this session.\x1b[0m")
+        print("\x1b[2m\x1b[31m    Error: Audio folder not found. Play functions will not work for this session.\x1b[0m")
         return {}
     
     audio = {}
