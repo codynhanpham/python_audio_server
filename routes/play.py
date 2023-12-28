@@ -102,7 +102,7 @@ def play_random():
 
     # the log file for playlist is separate from the main log file, and is specific to the playlist session
     # the prefix will be the LOGFILE_PREFIX env variable (or log) + "playlist_" + the current time
-    current_log_file = (os.getenv("LOGFILE_PREFIX") or "log_") + "playlist_" + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
+    current_log_file = (os.getenv("LOGFILE_PREFIX") or "log_") + "playrandom_" + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
 
     # make sure the logs/ directory exists, also create the log file
     if not os.path.exists("logs/"):
@@ -155,7 +155,7 @@ def play_random():
 
         playback_duration = (time.time_ns() - time_ns_playback) / 1e9
         request_duration = (time.time_ns() - time_ns) / 1e9
-        print(f"At {time_ns} started playing {file_count} random audio files. Playback took {playback_duration} seconds. Total time since request: {request_duration} seconds.")
+        print(f"At {time_ns} started playing {file_count} random audio files. Playback took {playback_duration} seconds. Total time since request: {request_duration} seconds.\n\n")
 
         return jsonify(message=f"At {time_ns} started playing {file_count} random audio files. Playback took {playback_duration} seconds. Total time since request: {request_duration} seconds."), 200
     
