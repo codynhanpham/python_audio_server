@@ -6,8 +6,8 @@ os.environ["PATH"] += os.pathsep + getattr(sys, '_MEIPASS', os.path.dirname(os.p
 
 import utils as utils
 
-from dotenv import load_dotenv
-load_dotenv()
+from dotenv import dotenv_values
+config = dotenv_values(".env")
 from flask import Flask, jsonify, g
 from waitress import serve
 
@@ -26,11 +26,11 @@ IP_ADDRESS = utils.get_local_ip()
 AUDIO = utils.load_audio()
 utils.PLAYLIST = utils.load_and_validate_playlists("playlists/", AUDIO)
 
-current_log_file = (os.getenv("LOGFILE_PREFIX") or "log_") + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
+current_log_file = (config["LOGFILE_PREFIX"] or "log_") + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
 print(f"New log file started: ./logs/{current_log_file}\n")
 
 
-# Call this function before every request
+# Call this function before every request to share global variables
 @app.before_request
 def before_request():
     g.AUDIO = AUDIO
@@ -38,17 +38,18 @@ def before_request():
     global current_log_file
     g.current_log_file = current_log_file
     g.IP_ADDRESS = IP_ADDRESS
-    g.PORT = os.getenv("PORT") or 5055
+    g.PORT = config["PORT"] or 5055
+    g.LOGFILE_PREFIX = config["LOGFILE_PREFIX"] or "log_"
 
 
-# This route must be in the main file, to be able to change the global variable current_log_file
+# This route must be in the main file, to be able to easily change the global variable current_log_file
 @app.route('/startnewlog', methods=['GET'])
 def start_new_log():
     time_ns = time.time_ns()
     print(f"{time_ns}: Received /startnewlog")
 
     global current_log_file
-    current_log_file = os.getenv("LOGFILE_PREFIX") + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
+    current_log_file = (config["LOGFILE_PREFIX"] or "log_") + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
     
     print(f"New log file started: {current_log_file}")
     return jsonify(message=f"Started new log file: ./logs/{current_log_file}"), 200
@@ -62,12 +63,11 @@ app.register_blueprint(ping_blueprint)
 from routes.info import info_blueprint
 app.register_blueprint(info_blueprint)
 
-# route to /play to play audio
+# route to /play and /play/random to play audio
 from routes.play import play_blueprint
 app.register_blueprint(play_blueprint)
 
-
-# route to /tone/<frequency>/<duration>/<volume>/<sample_rate> to generate a tone and play it
+# route to /tone/<frequency>/<duration>/<volume>/<sample_rate> (and /save_tone) to generate a tone and play it
 from routes.tone import tone_blueprint
 app.register_blueprint(tone_blueprint)
 
@@ -77,7 +77,7 @@ app.register_blueprint(playlist_blueprint)
 
 
 if __name__ == '__main__':
-    PORT = os.getenv("PORT") or 5055
+    PORT = config["PORT"] or 5055
     print(f"Serving app at http://{IP_ADDRESS}:{PORT}/\n")
     print("(Hit Ctrl+C to quit at anytime)\n\n")
     serve(app, host='0.0.0.0', port=PORT)

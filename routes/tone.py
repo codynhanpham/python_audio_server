@@ -12,7 +12,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from pydub.playback import play
-from scipy.io import wavfile
 import numpy as np
 
 

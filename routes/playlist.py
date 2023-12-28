@@ -29,7 +29,7 @@ def create_playlist():
         print(f"\x1b[2m\x1b[31m    No audio files found\x1b[0m")
         return jsonify(message="No audio file (.wav or .mp3) in the ./audio/ folder."), 404
 
-    # try to get the file_count and break_between_files from the query string, else default to 100 and 0 respectively
+    # try to get the file_count and break_between_files from the query string, else default to 10 and 0 respectively
     try:
         file_count = int(request.args.get('file_count'))
     except (TypeError, ValueError):
@@ -96,6 +96,7 @@ def play_playlist(name):
     
     AUDIO = g.AUDIO
     PLAYLIST = g.PLAYLIST
+    logfile_prefix = g.LOGFILE_PREFIX
 
     # if AUDIO is an empty dict, return 404 error
     if not AUDIO:
@@ -108,7 +109,7 @@ def play_playlist(name):
 
     # the log file for playlist is separate from the main log file, and is specific to the playlist session
     # the prefix will be the LOGFILE_PREFIX env variable (or log) + "playlist_" + the current time
-    current_log_file = (os.getenv("LOGFILE_PREFIX") or "log_") + "playlist_" + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
+    current_log_file = logfile_prefix + "playlist_" + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
 
     playlist = PLAYLIST[name]
 
@@ -160,7 +161,6 @@ def play_playlist(name):
                 timestart = time.time_ns()
                 print(f"\x1b[34m    [{count+1}/{len(playlist)}] {timestart}: Pausing for {step['value']}ms...\x1b[0m")
                 time.sleep(step["value"]/1000)
-                # print(f"\x1b[2m    Finished (job at {timestart})\x1b[0m")
 
                 # write to log file
                 with open("logs/" + current_log_file, 'a', newline='') as csvfile:
@@ -172,7 +172,6 @@ def play_playlist(name):
 
         playback_duration = (time.time_ns() - time_ns_playback)/1_000_000_000
         request_duration = (time.time_ns() - time_ns)/1_000_000_000
-        # At {} started playlist {} ({} audio files). Playback took {} seconds. Total time since request: {} seconds.
         print(f"At {time_ns_playback} started playlist {name} ({len(playlist)} audio files). Playback took {playback_duration} seconds. Total time since request: {request_duration} seconds.\n\n")
 
         return jsonify(message=f"At {time_ns_playback} started playlist {name} ({len(playlist)} audio files). Playback took {playback_duration} seconds. Total time since request: {request_duration} seconds."), 200

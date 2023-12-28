@@ -121,7 +121,7 @@ def load_and_validate_playlists(playlist_folder_path, AUDIO):
     return playlists
 
 # Generate tones specified in a csv file: frequency (Hz), duration (ms), volume (dB), and sample rate (Hz)
-# defaults: 440 Hz, 100 ms, 60 dB, 44100 Hz
+# defaults: 440 Hz, 100 ms, 60 dB, 96000 Hz
 def create_tone(frequency=440, duration=100, volume=60, sample_rate=96000):
     # create a tone and convert to the pydub audio segment format
     

@@ -6,8 +6,6 @@ if not hasattr(time, 'time_ns'):
 
 import csv
 import random
-from dotenv import load_dotenv
-load_dotenv()
 
 from pydub.playback import play
 
@@ -79,6 +77,7 @@ def play_random():
 
     AUDIO = g.AUDIO
     current_log_file = g.current_log_file
+    logfile_prefix = g.LOGFILE_PREFIX
 
     # if AUDIO is an empty dict, return 404 error
     if not AUDIO:
@@ -101,8 +100,8 @@ def play_random():
 
 
     # the log file for playlist is separate from the main log file, and is specific to the playlist session
-    # the prefix will be the LOGFILE_PREFIX env variable (or log) + "playlist_" + the current time
-    current_log_file = (os.getenv("LOGFILE_PREFIX") or "log_") + "playrandom_" + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
+    # the prefix will be the LOGFILE_PREFIX env variable (or log) + "playlist_" + the current time        
+    current_log_file = logfile_prefix + "playrandom_" + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
 
     # make sure the logs/ directory exists, also create the log file
     if not os.path.exists("logs/"):
@@ -128,7 +127,7 @@ def play_random():
             source = AUDIO[name]["audio"]
 
             timestart = time.time_ns()
-            print(f"\x1b[2m\x1b[32m    [{count + 1}/{file_count}] {timestart}: Playing {name}...\x1b[0m")
+            print(f"\x1b[32m    [{count + 1}/{file_count}] {timestart}: Playing {name}...\x1b[0m")
             with utils.ignore_stderr():
                 play(source)
             print(f"\x1b[2m    Finished (job at {timestart})\x1b[0m")
