@@ -25,7 +25,7 @@ if not hasattr(time, 'time_ns'):
 # instantiate the app
 app = Flask(__name__)
 
-# utils.save_sweep("logarithmic", 40000, 10000, 100, 80, 192000)
+
 
 print("\n------------------ PYTHON AUDIO SERVER ------------------")
 print("The source code for this project is available at https://github.com/codynhanpham/python_audio_server\n\n")
@@ -79,6 +79,10 @@ app.register_blueprint(play_blueprint)
 # route to /tone/<frequency>/<duration>/<volume>/<sample_rate> (and /save_tone) to generate a tone and play it
 from routes.tone import tone_blueprint
 app.register_blueprint(tone_blueprint)
+
+# route to /sweep/<sweep_type>/<start_freq>/<end_freq>/<duration>/<volume>/<sample_rate> (and /save_sweep) to generate a sweep and play it
+from routes.sweep import sweep_blueprint
+app.register_blueprint(sweep_blueprint)
 
 # route to /playlist/create and /playlist to generate a random playlist and play it
 from routes.playlist import playlist_blueprint

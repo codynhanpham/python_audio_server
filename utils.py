@@ -5,7 +5,7 @@ import socket
 import contextlib
 import os
 import sys
-from sympy import symbols, parse_expr, lambdify
+# from sympy import symbols, parse_expr, lambdify
 from scipy.signal import chirp
 
 PLAYLIST = {}
@@ -122,8 +122,6 @@ def load_and_validate_playlists(playlist_folder_path, AUDIO):
     print(f"Loaded {len(playlists)} playlist files\n")
     return playlists
 
-# Generate tones specified in a csv file: frequency (Hz), duration (ms), volume (dB), and sample rate (Hz)
-# defaults: 440 Hz, 100 ms, 60 dB, 96000 Hz
 def create_tone(frequency=440, duration=100, volume=60, sample_rate=192000):
     # create a tone and convert to the pydub audio segment format
     
@@ -169,9 +167,6 @@ def create_tone(frequency=440, duration=100, volume=60, sample_rate=192000):
 
 
 
-
-# Generate tones specified in a csv file: frequency (Hz), duration (ms), volume (dB), and sample rate (Hz)
-# defaults: 440 Hz, 100 ms, 60 dB, 96000 Hz
 def create_sweep(mode: str, start_frequency=440, end_frequency=440, duration=100, volume=60, sample_rate=192000):
     # Parse the args and validate their types
     try:
@@ -219,7 +214,3 @@ def create_sweep(mode: str, start_frequency=440, end_frequency=440, duration=100
     # Convert to audio segment
     tone = AudioSegment(y.tobytes(), frame_rate=sample_rate, sample_width=2, channels=1)
     return tone
-
-def save_sweep(sweep_function: str, start_frequency=440, end_frequency=440, duration=100, volume=60, sample_rate=192000, filename="sweep.wav"):
-    tone = create_sweep(sweep_function, start_frequency, end_frequency, duration, volume, sample_rate)
-    tone.export(filename, format="wav")

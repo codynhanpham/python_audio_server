@@ -76,9 +76,11 @@ def save_tone(frequency, duration, volume, sample_rate):
     
     try:
         duration = int(duration)
+        if duration <= 0:
+            raise ValueError
     except (TypeError, ValueError):
         print(f"\x1b[2m\x1b[31m    Duration is invalid\x1b[0m")
-        return jsonify(error="Duration must be an integer."), 400
+        return jsonify(error="Duration must be an integer > 0."), 400
     
     try:
         volume = float(volume)
@@ -88,9 +90,11 @@ def save_tone(frequency, duration, volume, sample_rate):
     
     try:
         sample_rate = int(sample_rate)
+        if sample_rate <= 0:
+            raise ValueError
     except (TypeError, ValueError):
         print(f"\x1b[2m\x1b[31m    Sample rate is invalid\x1b[0m")
-        return jsonify(error="Sample rate must be an integer."), 400
+        return jsonify(error="Sample rate must be an integer > 0."), 400
 
     # create the tone and return as a wav file for download
     # calculate the number of samples

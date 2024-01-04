@@ -32,7 +32,18 @@ def info():
 
         - GET /save_tone/<freq>/<duration>/<amplitude>/<sample_rate>
                                             --> create a .wav file of a pure sine tone
-                (eg. /save_tone/1000/500/40/96000 ==> generate file 1000Hz_500ms_40dB_@96000Hz.wav to download)
+                (eg. /save_tone/1000/500/40/96000 ==> generate file "1000.0Hz_500ms_40.0dB_@96000Hz.wav" to download)
+
+
+        - GET /sweep/<sweep_type>/<start_freq>/<end_freq>/<duration>/<volume>/<sample_rate>
+                                            --> play a sweep
+                (eg. /sweep/linear/1000/10000/500/40/96000 ==> linear sweep from 1000Hz to 10000Hz in 500ms started playing on the server at 40dB)
+                + sweep_type: "linear", "quadratic", "logarithmic", "hyperbolic"
+
+
+        - GET /save_sweep/<sweep_type>/<start_freq>/<end_freq>/<duration>/<volume>/<sample_rate>
+                                            --> create a .wav file of a sweep
+                (eg. /save_sweep/linear/1000/10000/500/40/96000 ==> generate file "sweep_linear_1000.0Hz_10000.0Hz_500ms_40.0dB_@96000Hz.wav
 
 
         - GET /play/random                  --> play some random audio files. 2 optional parameters:
