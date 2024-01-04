@@ -25,6 +25,8 @@ if not hasattr(time, 'time_ns'):
 # instantiate the app
 app = Flask(__name__)
 
+# utils.save_sweep("logarithmic", 40000, 10000, 100, 80, 192000)
+
 print("\n------------------ PYTHON AUDIO SERVER ------------------")
 print("The source code for this project is available at https://github.com/codynhanpham/python_audio_server\n\n")
 

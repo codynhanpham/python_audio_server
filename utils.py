@@ -5,6 +5,8 @@ import socket
 import contextlib
 import os
 import sys
+from sympy import symbols, parse_expr, lambdify
+from scipy.signal import chirp
 
 PLAYLIST = {}
 
@@ -122,7 +124,7 @@ def load_and_validate_playlists(playlist_folder_path, AUDIO):
 
 # Generate tones specified in a csv file: frequency (Hz), duration (ms), volume (dB), and sample rate (Hz)
 # defaults: 440 Hz, 100 ms, 60 dB, 96000 Hz
-def create_tone(frequency=440, duration=100, volume=60, sample_rate=96000):
+def create_tone(frequency=440, duration=100, volume=60, sample_rate=192000):
     # create a tone and convert to the pydub audio segment format
     
     # parse the args and validate their types: freq: float, duration: int, volume: float, sample_rate: int
@@ -147,8 +149,8 @@ def create_tone(frequency=440, duration=100, volume=60, sample_rate=96000):
     try:
         sample_rate = int(sample_rate)
     except:
-        sample_rate = 96000
-        print("\x1b[2m\x1b[31m    Sample rate is invalid. Using default value (96000 Hz).")
+        sample_rate = 192000
+        print("\x1b[2m\x1b[31m    Sample rate is invalid. Using default value (192000 Hz).")
 
     # create the tone at the specified frequency and sample rate
     samples = int(sample_rate * duration / 1000)
@@ -164,3 +166,60 @@ def create_tone(frequency=440, duration=100, volume=60, sample_rate=96000):
     # convert to audio segment
     tone = AudioSegment(y.tobytes(), frame_rate=sample_rate, sample_width=2, channels=1)
     return tone
+
+
+
+
+# Generate tones specified in a csv file: frequency (Hz), duration (ms), volume (dB), and sample rate (Hz)
+# defaults: 440 Hz, 100 ms, 60 dB, 96000 Hz
+def create_sweep(mode: str, start_frequency=440, end_frequency=440, duration=100, volume=60, sample_rate=192000):
+    # Parse the args and validate their types
+    try:
+        start_frequency = float(start_frequency)
+        end_frequency = float(end_frequency)
+        if not (0 <= start_frequency <= 200_000) or not (0 <= end_frequency <= 200_000):
+            raise ValueError
+    except:
+        start_frequency = 440
+        end_frequency = 8800
+        print("\x1b[2m\x1b[31m    Frequency is invalid. Using default value (440-8800 Hz).")
+
+    try:
+        duration = int(duration)
+    except:
+        duration = 100
+        print("\x1b[2m\x1b[31m    Duration is invalid. Using default value (100 ms).")
+    
+    try:
+        volume = float(volume)
+    except:
+        volume = 60
+        print("\x1b[2m\x1b[31m    Volume is invalid. Using default value (60 dB).")
+
+    try:
+        sample_rate = int(sample_rate)
+    except:
+        sample_rate = 192000
+        print("\x1b[2m\x1b[31m    Sample rate is invalid. Using default value (192000 Hz).")
+
+    # Parse the mode: "linear", "quadratic", "logarithmic", "hyperbolic"
+    if mode not in ["linear", "quadratic", "logarithmic", "hyperbolic"]:
+        mode = "linear"
+        print("\x1b[2m\x1b[31m    Mode is invalid. Using default value (linear).")
+
+    # Create the sweep at the specified frequency and sample rate
+    t = np.linspace(0, duration / 1000, duration * sample_rate // 1000)
+    # Calculate the y values
+    y = chirp(t, start_frequency, duration / 1000, end_frequency, method=mode)
+    # Scale the y values
+    y *= 10 ** (volume / 20)
+    # Convert to 16-bit data
+    y = y.astype(np.int16)
+
+    # Convert to audio segment
+    tone = AudioSegment(y.tobytes(), frame_rate=sample_rate, sample_width=2, channels=1)
+    return tone
+
+def save_sweep(sweep_function: str, start_frequency=440, end_frequency=440, duration=100, volume=60, sample_rate=192000, filename="sweep.wav"):
+    tone = create_sweep(sweep_function, start_frequency, end_frequency, duration, volume, sample_rate)
+    tone.export(filename, format="wav")
