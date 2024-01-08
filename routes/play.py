@@ -67,7 +67,7 @@ def play_audio(name):
             logwriter.writerow([timestart, name, "error", client_time])
         print(f"\x1b[2m    Appended (error) to log file: ./logs/{current_log_file}\x1b[0m")
 
-        return jsonify(error=str(e), message="The server can only play audio at the following sampling rates: 8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000 (Hz). If the error is about weird sample rates, please double check your audio file."), 500
+        return jsonify(error=str(e), message="The server can only play audio reliably at the following sampling rates: 8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000 (Hz). If the error is about weird sample rates, please double check your audio file."), 500
     
 
 @play_blueprint.route('/play/random', methods=['GET'])
@@ -166,4 +166,4 @@ def play_random():
             logwriter.writerow([timestart, "random playback", "error", "N/A"])
         print(f"\x1b[2m    Appended (error) to log file: ./logs/{current_log_file}\x1b[0m")
 
-        return jsonify(error=str(e), message="The server can only play audio at the following sampling rates: 8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000 (Hz). If the error is about weird sample rates, please double check your audio file."), 500
+        return jsonify(error=str(e), message="The server can only play audio reliably at the following sampling rates: 8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000 (Hz). If the error is about weird sample rates, please double check your audio file."), 500

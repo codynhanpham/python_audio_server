@@ -1,6 +1,3 @@
-# Generate tones specified in a csv file: frequency (Hz), duration (ms), volume (dB), and sample rate (Hz)
-# defaults: 440 Hz, 100 ms, 60 dB, 44100 Hz
-
 import os
 import csv
 

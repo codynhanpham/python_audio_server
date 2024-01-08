@@ -42,6 +42,9 @@ def sweep_docs():
 
         + ?time= : (optional) time in ms when the request was sent (client time)
 
+        + ?edge=-<value> (optional, default = 0) --> fade in and out the tone by <value> ms
+            (value must be negative or 0, inclusive fade duration, eg. ?edge=-10)
+
 
     - /save_sweep/<sweep_type>/<start_freq>/<end_freq>/<duration>/<volume>/<sample_rate>
         (Similar to /sweep, but saves the sweep as a .wav file instead of playing it)
@@ -53,7 +56,30 @@ def sweep_docs():
 @sweep_blueprint.route('/sweep/<sweep_type>/<start_freq>/<end_freq>/<duration>/<volume>/<sample_rate>', methods=['GET'])
 def play_sweep(sweep_type, start_freq, end_freq, duration, volume, sample_rate):
     time_ns = time.time_ns()
-    print(f"{time_ns}: Received /sweep/{sweep_type}/{start_freq}/{end_freq}/{duration}/{volume}/{sample_rate}")
+    # Get the ?edge= query string, else default to nothing
+    edge = request.args.get('edge') or request.args.get('edges') or 0
+    print(f"{time_ns}: Received /sweep/{sweep_type}/{start_freq}/{end_freq}/{duration}/{volume}/{sample_rate}?edge={edge}")
+
+    # Parse edge into an int: if float then round to nearest int
+    try:
+        edge = int(round(float(edge)))
+        if edge > 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        print(f"\x1b[2m\x1b[31m    Edge is invalid. Must be a valid integer <= 0.\x1b[0m")
+        return jsonify(error="For sweep, Edge must be a valid integer <= 0 (inclusive)."), 400
+    try:
+        duration = int(duration)
+        if duration <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        print(f"\x1b[2m\x1b[31m    Duration is invalid\x1b[0m")
+        return jsonify(error="Duration must be an integer > 0."), 400
+    
+    if edge < 0 and duration < 2*abs(edge):
+        print(f"\x1b[2m\x1b[31m    Duration or edge is invalid\x1b[0m")
+        return jsonify(error="For sweep, Edge must be <= 0 (inclusive), and the Duration must be greater than the absolute value of the edge times 2 (rising and falling)."), 400
+    
 
     # create logs/ directory if it doesn't exist
     if not os.path.exists("logs/"):
@@ -65,10 +91,16 @@ def play_sweep(sweep_type, start_freq, end_freq, duration, volume, sample_rate):
     client_time = request.args.get('time') or ""
 
     # create the sweep
-    sweep = utils.create_sweep(sweep_type, start_freq, end_freq, duration, volume, sample_rate)
+    sweep = utils.create_sweep(sweep_type, start_freq, end_freq, duration, volume, sample_rate, edge)
+    edge_tag = ""
+    if edge > 0:
+        edge_tag = f"_+{abs(edge)}ms"
+    elif edge < 0:
+        edge_tag = f"_-{abs(edge)}ms"
+
     try:
         timestart = time.time_ns()
-        print(f"\x1b[2m    {timestart}: Playing {sweep_type}_{start_freq}Hz_{end_freq}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz...\x1b[0m")
+        print(f"\x1b[2m    {timestart}: Playing {sweep_type}_{start_freq}Hz_{end_freq}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz (edge: {edge}ms)...\x1b[0m")
         with utils.ignore_stderr():
             play(sweep)
         print(f"\x1b[2m    Finished (job at {timestart})\x1b[0m")
@@ -76,17 +108,17 @@ def play_sweep(sweep_type, start_freq, end_freq, duration, volume, sample_rate):
         # write to log file
         with open("logs/" + current_log_file, 'a', newline='') as csvfile:
             logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            logwriter.writerow([timestart, f"{sweep_type}_{start_freq}Hz_{end_freq}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz", "success", client_time])
+            logwriter.writerow([timestart, f"{sweep_type}_{start_freq}Hz_{end_freq}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz{edge_tag}", "success", client_time])
         print(f"\x1b[2m    Appended to log file: ./logs/{current_log_file}\x1b[0m")
 
-        return jsonify(message=f"At {timestart} played sweep_{sweep_type}_{start_freq}Hz_{end_freq}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz"), 200
+        return jsonify(message=f"At {timestart} played sweep_{sweep_type}_{start_freq}Hz_{end_freq}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz{edge_tag}"), 200
     except Exception as e:
         print(f"\x1b[2m\x1b[31m    Error occurred: {e}\x1b[0m")
         # write to log file
         with open("logs/" + current_log_file, 'a', newline='') as csvfile:
             logwriter = csv.writer
             logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            logwriter.writerow([timestart, f"{sweep_type}_{start_freq}Hz_{end_freq}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz", "error", client_time])
+            logwriter.writerow([timestart, f"{sweep_type}_{start_freq}Hz_{end_freq}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz{edge_tag}", "error", client_time])
         print(f"\x1b[2m    Appended to log file: ./logs/{current_log_file}\x1b[0m")
 
         return jsonify(message=f"Error occurred: {e}"), 500
@@ -94,7 +126,9 @@ def play_sweep(sweep_type, start_freq, end_freq, duration, volume, sample_rate):
 @sweep_blueprint.route('/save_sweep/<sweep_type>/<start_freq>/<end_freq>/<duration>/<volume>/<sample_rate>', methods=['GET'])
 def save_sweep(sweep_type, start_freq, end_freq, duration, volume, sample_rate):
     time_ns = time.time_ns()
-    print(f"{time_ns}: Received /save_sweep/{sweep_type}/{start_freq}/{end_freq}/{duration}/{volume}/{sample_rate}")
+    # Get the ?edge= query string, else default to nothing
+    edge = request.args.get('edge') or request.args.get('edges') or 0
+    print(f"{time_ns}: Received /save_sweep/{sweep_type}/{start_freq}/{end_freq}/{duration}/{volume}/{sample_rate}?edge={edge}")
 
     # validate args
     try:
@@ -138,6 +172,18 @@ def save_sweep(sweep_type, start_freq, end_freq, duration, volume, sample_rate):
     if sweep_type not in ["linear", "quadratic", "logarithmic", "hyperbolic"]:
         return jsonify(error="sweep_type must be one of the following: linear, quadratic, logarithmic, hyperbolic"), 400
     
+    # Parse edge into an int: if float then round to nearest int
+    try:
+        edge = int(round(float(edge)))
+        if edge > 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        print(f"\x1b[2m\x1b[31m    Edge is invalid. Must be a valid integer <= 0.\x1b[0m")
+        return jsonify(error="For sweep, Edge must be a valid integer <= 0 (inclusive)."), 400
+    
+    if edge < 0 and duration < 2*abs(edge):
+        print(f"\x1b[2m\x1b[31m    Duration or edge is invalid\x1b[0m")
+        return jsonify(error="For sweep, Edge must be <= 0 (inclusive), and the Duration must be greater than the absolute value of the edge times 2 (rising and falling)."), 400
 
     # Create the sweep at the specified frequency and sample rate
     t = np.linspace(0, duration / 1000, duration * sample_rate // 1000)
@@ -145,6 +191,20 @@ def save_sweep(sweep_type, start_freq, end_freq, duration, volume, sample_rate):
     y = chirp(t, start_freq, duration / 1000, end_freq, method=sweep_type)
     # Scale the y values
     y *= 10 ** (volume / 20)
+
+    if edge != 0:
+        # calculate the number of edge samples
+        edge_samples = int(sample_rate * abs(edge) / 1000)
+
+        # create the fade-in and fade-out ramps
+        fade_in = np.linspace(0, 1, edge_samples)
+        fade_out = fade_in[::-1]
+
+        # apply the fade-in and fade-out
+        y[:edge_samples] *= fade_in
+        y[-edge_samples:] *= fade_out
+
+
     # Convert to 16-bit data
     y = y.astype(np.int16)
 
@@ -158,9 +218,15 @@ def save_sweep(sweep_type, start_freq, end_freq, duration, volume, sample_rate):
 
     wav_data = output.getvalue()
 
+    edge_tag = ""
+    if edge > 0:
+        edge_tag = f"_+{abs(edge)}ms"
+    elif edge < 0:
+        edge_tag = f"_-{abs(edge)}ms"
+
     return send_file(
         io.BytesIO(wav_data),
         mimetype='audio/wav',
         as_attachment=True,
-        attachment_filename=f"sweep_{sweep_type}_{start_freq}Hz_{end_freq}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz.wav"
+        attachment_filename=f"{sweep_type}_{start_freq}Hz_{end_freq}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz{edge_tag}.wav"
     )

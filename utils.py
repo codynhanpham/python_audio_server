@@ -5,7 +5,6 @@ import socket
 import contextlib
 import os
 import sys
-# from sympy import symbols, parse_expr, lambdify
 from scipy.signal import chirp
 
 PLAYLIST = {}
@@ -122,10 +121,10 @@ def load_and_validate_playlists(playlist_folder_path, AUDIO):
     print(f"Loaded {len(playlists)} playlist files\n")
     return playlists
 
-def create_tone(frequency=440, duration=100, volume=60, sample_rate=192000):
+def create_tone(frequency=440, duration=100, volume=60, sample_rate=192000, edge=0):
     # create a tone and convert to the pydub audio segment format
     
-    # parse the args and validate their types: freq: float, duration: int, volume: float, sample_rate: int
+    # parse the args and validate their types: freq: float, duration: int, volume: float, sample_rate: int, edge: int (positive or negative)
     try:
         frequency = float(frequency)
     except:
@@ -150,6 +149,22 @@ def create_tone(frequency=440, duration=100, volume=60, sample_rate=192000):
         sample_rate = 192000
         print("\x1b[2m\x1b[31m    Sample rate is invalid. Using default value (192000 Hz).")
 
+    try:
+        edge = int(edge)
+    except:
+        edge = 0
+        print("\x1b[2m\x1b[31m    Edge is invalid. Using default value (0 ms).")
+
+    if edge < 0 and duration < 2*edge:
+        edge = 0
+        print("\x1b[2m\x1b[31m    Edge is negative but Duration is < 2*Edge. Using default value for edge (0 ms).")
+
+    # modify the total duration if edge is specified:
+    # edge < 0: the ramp duration is already included in the duration --> no modification
+    # edge > 0: the ramp duration is not included in the duration --> add the ramp duration (2 * edge) to the duration
+    if edge > 0:
+        duration += 2 * edge
+
     # create the tone at the specified frequency and sample rate
     samples = int(sample_rate * duration / 1000)
     # calculate the x values
@@ -158,6 +173,20 @@ def create_tone(frequency=440, duration=100, volume=60, sample_rate=192000):
     y = np.sin(2 * np.pi * frequency * x / sample_rate)
     # scale the y values
     y *= 10 ** (volume / 20)
+    
+    # Add edge (raise and fall) to the tone
+    if edge != 0:
+        # calculate the number of edge samples
+        edge_samples = int(sample_rate * abs(edge) / 1000)
+
+        # create the fade-in and fade-out ramps
+        fade_in = np.linspace(0, 1, edge_samples)
+        fade_out = fade_in[::-1]
+
+        # apply the fade-in and fade-out
+        y[:edge_samples] *= fade_in
+        y[-edge_samples:] *= fade_out
+
     # convert to 16-bit data
     y = y.astype(np.int16)
 
@@ -167,7 +196,9 @@ def create_tone(frequency=440, duration=100, volume=60, sample_rate=192000):
 
 
 
-def create_sweep(mode: str, start_frequency=440, end_frequency=440, duration=100, volume=60, sample_rate=192000):
+def create_sweep(mode: str, start_frequency=440, end_frequency=440, duration=100, volume=60, sample_rate=192000, edge=0):
+    # For sweep, edge must be negative since we cannot extend the duration of the sweep as limited by the start and end frequencies
+
     # Parse the args and validate their types
     try:
         start_frequency = float(start_frequency)
@@ -202,12 +233,40 @@ def create_sweep(mode: str, start_frequency=440, end_frequency=440, duration=100
         mode = "linear"
         print("\x1b[2m\x1b[31m    Mode is invalid. Using default value (linear).")
 
+    try:
+        edge = int(edge)
+        # edge also needs to be negative
+        if edge > 0:
+            raise ValueError
+    except:
+        edge = 0
+        print("\x1b[2m\x1b[31m    Edge for sweep is invalid. Using default value (0 ms).")
+
+    if edge < 0 and duration < 2*abs(edge):
+        edge = 0
+        print("\x1b[2m\x1b[31m    Edge is negative but Duration is < 2*Edge. Using default value for edge (0 ms).")
+
     # Create the sweep at the specified frequency and sample rate
     t = np.linspace(0, duration / 1000, duration * sample_rate // 1000)
     # Calculate the y values
     y = chirp(t, start_frequency, duration / 1000, end_frequency, method=mode)
     # Scale the y values
     y *= 10 ** (volume / 20)
+
+    # Add edge (raise and fall) to the tone
+    if edge != 0:
+        # calculate the number of edge samples
+        edge_samples = int(sample_rate * abs(edge) / 1000)
+
+        # create the fade-in and fade-out ramps
+        fade_in = np.linspace(0, 1, edge_samples)
+        fade_out = fade_in[::-1]
+
+        # apply the fade-in and fade-out
+        y[:edge_samples] *= fade_in
+        y[-edge_samples:] *= fade_out
+
+
     # Convert to 16-bit data
     y = y.astype(np.int16)
 
