@@ -10,4 +10,7 @@ bat_files
 *.spec
 *.zip
 
+*/ffmpeg.exe
+*/ffprobe.exe
+
 python_audio_server
