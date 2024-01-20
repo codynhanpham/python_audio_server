@@ -1,4 +1,4 @@
-from flask import Blueprint, Response, g
+from flask import Blueprint, Response, g, jsonify, request
 import time
 if not hasattr(time, 'time_ns'):
     time.time_ns = lambda: int(time.time() * 1e9)
@@ -15,6 +15,8 @@ def info():
 
         - GET /list                         --> list all available audio files and playlists
                 (eg. /list ==> Audio files: ... Playlists: ...)
+                + ?json=true (optional) --> return JSON instead of plain text
+						(eg. /list?json=true ==> {"audio": [...], "playlist": [...]})
 
 
         - GET /startnewlog                  --> start a new log file
@@ -104,17 +106,23 @@ def info():
 
 @info_blueprint.route('/list', methods=['GET'])
 def list_items():
-    time_ns = time.time_ns()
-    print(f"{time_ns}: Received /list")
-    AUDIO = g.AUDIO
-    audio_names = sorted(AUDIO.keys())
+	time_ns = time.time_ns()
+	print(f"{time_ns}: Received /list")
+	AUDIO = g.AUDIO
+	audio_names = sorted(AUDIO.keys())
 
-    PLAYLIST = g.PLAYLIST
-    playlist_names = sorted(PLAYLIST.keys())
+	PLAYLIST = g.PLAYLIST
+	playlist_names = sorted(PLAYLIST.keys())
 
-    text = f"""
-    Audio files ({len(AUDIO)}):\n\n        {chr(9)}{f"{chr(10)}        {chr(9)}".join(audio_names)}\n\n\n
+	text = f"""
+	Audio files ({len(AUDIO)}):\n\n        {chr(9)}{f"{chr(10)}        {chr(9)}".join(audio_names)}\n\n\n
 
-    Playlists ({len(PLAYLIST)}):\n\n        {chr(9)}{f"{chr(10)}        {chr(9)}".join(playlist_names)}\n\n\n
-    """
-    return Response(text, mimetype='text/plain'), 200
+	Playlists ({len(PLAYLIST)}):\n\n        {chr(9)}{f"{chr(10)}        {chr(9)}".join(playlist_names)}\n\n\n
+	"""
+
+	# Get the ?json= query string, else default to nothing
+	withjson = request.args.get('json') or ""
+	if withjson == "true":
+		return jsonify(audio=audio_names, playlist=playlist_names), 200
+
+	return Response(text, mimetype='text/plain'), 200
