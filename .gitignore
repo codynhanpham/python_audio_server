@@ -13,4 +13,8 @@ bat_files
 */ffmpeg.exe
 */ffprobe.exe
 
-python_audio_server
+py_audio_server
+py_audio_server.exe
+
+Audio Server - Client GUI_resources/
+*.mlappinstall

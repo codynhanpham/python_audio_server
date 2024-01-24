@@ -138,6 +138,7 @@ def save_tone(frequency, duration, volume, sample_rate):
     # modify the total duration if edge is specified:
     # edge < 0: the ramp duration is already included in the duration --> no modification
     # edge > 0: the ramp duration is not included in the duration --> add the ramp duration (2 * edge) to the duration
+    original_duration = duration # save this for the filename
     if edge > 0:
         duration += 2 * edge
 
@@ -186,5 +187,5 @@ def save_tone(frequency, duration, volume, sample_rate):
         io.BytesIO(wav_data),
         mimetype='audio/wav',
         as_attachment=True,
-        attachment_filename=f"{frequency}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz{edge_tag}.wav"
+        attachment_filename=f"{frequency}Hz_{original_duration}ms_{volume}dB_@{sample_rate}Hz{edge_tag}.wav"
     )

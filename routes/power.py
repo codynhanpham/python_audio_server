@@ -140,4 +140,4 @@ def shutdown():
     g.SHUTDOWN_TOKENS.append(expiringVar)
     utils.SHUTDOWN_TOKENS = g.SHUTDOWN_TOKENS
 
-    return jsonify(shutdownToken=shutdownToken, route=f"/shutdown?token={shutdownToken}", message="The shutdown token will expire in 60 seconds."), 200
+    return jsonify(shutdown_token=shutdownToken, route=f"/shutdown?token={shutdownToken}", message="The shutdown token will expire in 60 seconds."), 200
