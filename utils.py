@@ -7,7 +7,12 @@ import os
 import sys
 from scipy.signal import chirp
 
+import time
+if not hasattr(time, 'time_ns'):
+    time.time_ns = lambda: int(time.time() * 1e9)
+
 PLAYLIST = {}
+SHUTDOWN_TOKENS = []
 
 @contextlib.contextmanager
 def ignore_stderr():
@@ -273,3 +278,28 @@ def create_sweep(mode: str, start_frequency=440, end_frequency=440, duration=100
     # Convert to audio segment
     tone = AudioSegment(y.tobytes(), frame_rate=sample_rate, sample_width=2, channels=1)
     return tone
+
+
+# a class to create and handle expiring of variables --> use for creating and handling of tokens
+class ExpiringVariable:
+    def __init__(self, value, timeout=60):
+        self.value = value
+        self._last_updated = time.time()
+        self.timeout = timeout # in seconds
+
+    @property
+    def value(self):
+        """Get the value if the value hasn't timed out.
+        Returns None if the value has timed out."""
+        if time.time() - self._last_set < self.timeout:
+            return self._value
+        else:
+            return None
+        
+    @value.setter
+    def value(self, value, timeout=None):
+        """Set the value and update the last updated time."""
+        self._value = value
+        self._last_set = time.time()
+        if timeout is not None:
+            self.timeout = timeout

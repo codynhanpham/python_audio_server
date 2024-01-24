@@ -51,6 +51,7 @@ def before_request():
     g.LOGFILE_PREFIX = config.get("LOGFILE_PREFIX", "log_")
     g.BASE_PATH = BASE_PATH
     g._startup_cwd = _startup_cwd
+    g.SHUTDOWN_TOKENS = utils.SHUTDOWN_TOKENS
 
 
 # This route must be in the main file, to be able to easily change the global variable current_log_file
