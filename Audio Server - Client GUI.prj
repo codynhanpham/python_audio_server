@@ -1,5 +1,5 @@
 <deployment-project plugin="plugin.apptool" plugin-version="1.0">
-  <configuration build-checksum="3836092365" file="D:\JOBS\WashU_Neuroscience\Plasticity project\python_audio_server\Audio Server - Client GUI.prj" location="D:\JOBS\WashU_Neuroscience\Plasticity project\python_audio_server" name="Audio Server - Client GUI" target="target.mlapps" target-name="Package App">
+  <configuration build-checksum="4174521602" file="D:\JOBS\WashU_Neuroscience\Plasticity project\python_audio_server\Audio Server - Client GUI.prj" location="D:\JOBS\WashU_Neuroscience\Plasticity project\python_audio_server" name="Audio Server - Client GUI" target="target.mlapps" target-name="Package App">
     <param.appname>Audio Server - Client GUI</param.appname>
     <param.authnamewatermark>Cody Nhan Pham</param.authnamewatermark>
     <param.email>nhanp@wustl.edu</param.email>
@@ -10,9 +10,9 @@
       <file>${PROJECT_ROOT}\Audio Server - Client GUI_resources\icon_24.png</file>
       <file>${PROJECT_ROOT}\Audio Server - Client GUI_resources\icon_16.png</file>
     </param.icons>
-    <param.summary>Grapical user interface to easily interact with the PyAudioServer API.</param.summary>
+    <param.summary>Interface to interact with the PyAudioServer API.</param.summary>
     <param.description>Created to work with the py_audio_server app (https://github.com/codynhanpham/python_audio_server), this MATLAB app provides a friendly GUI to interact with the server.</param.description>
-    <param.screenshot>C:\Users\bnpco\AppData\Local\Temp\tp303fb66f_f8e7_497f_96b5_38bab377a652.png</param.screenshot>
+    <param.screenshot>C:\Users\bnpco\AppData\Local\Temp\tp45de1ea9_1000_43d0_9fce_b8393dd13298.png</param.screenshot>
     <param.version>1.0</param.version>
     <param.products.name />
     <param.products.id />

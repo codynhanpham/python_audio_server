@@ -77,7 +77,7 @@ def create_playlist():
 
     # If no_download is true, return the playlist name
     if no_download:
-        return jsonify(message=f"Created new playlist file server-side: ./playlists/{playlist_file_name}. To play this new playlist, visit http://{IP_ADDRESS}:{PORT}/playlist/{playlist_file_name}"), 200
+        return jsonify(message=f"Created new playlist file server-side: ./playlists/{playlist_file_name}. To play this new playlist, visit http://{IP_ADDRESS}:{PORT}/playlist/{playlist_file_name}", filename=playlist_file_name), 200
     
     # Else, return the playlist file for download
     return send_file(f"playlists/{playlist_file_name}", as_attachment=True), 200
