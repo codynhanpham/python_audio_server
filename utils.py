@@ -46,8 +46,9 @@ def get_local_ip():
     return IP
 
 
+
 # a function to load and process audio files in audio/ directory
-def load_audio():
+def load_audio(CLI_ARGS):
     print("Preloading audio files in ./audio/*.wav ...")
 
     # if audio/ directory doesn't exist, show a warning and return an empty dict
@@ -59,10 +60,30 @@ def load_audio():
     audio_types = [".wav", ".mp3", ".flac", ".ogg"]
     for filename in os.listdir("audio/"):
         if filename.endswith(tuple(audio_types)):
+            extension = filename.split(".")[-1]
+            audio_segment = AudioSegment.from_file(f"audio/{filename}", format=extension)
+
+            # create the info string
+            info = f"filename: {filename}\n"
+            info += f"duration: {len(audio_segment)} ms\n"
+            info += f"channels: {audio_segment.channels}\n"
+            info += f"sample_rate: {audio_segment.frame_rate} Hz\n"
+
+            if audio_segment.sample_width > 2:
+                print(f"\x1b[2m\x1b[33m    Warning (\"{filename}\"): bit depth > 16 bit may not playback correctly.\x1b[0m")
+                # audio_segment = audio_segment.set_sample_width(2)
+
+                # if CLI_ARGS.no_convert_to_s16 is false, auto convert to 16-bit signed integer format for reliability
+                if not CLI_ARGS.no_convert_to_s16:
+                    audio_segment = audio_segment.set_sample_width(2)
+                    print(f"\x1b[2m\x1b[34m    Converting \"{filename}\" to 16-bit signed integer format...\x1b[0m")
+
+
             audio[filename] = {
                 "name": filename,
                 "filename": f"audio/{filename}",
-                "audio": AudioSegment.from_file(f"audio/{filename}")
+                "audio": audio_segment,
+                "info": info
             }
 
     print(f"Preloaded {len(audio)} audio files to RAM\n")
@@ -86,8 +107,10 @@ def load_and_validate_playlists(playlist_folder_path, AUDIO):
 
         playlist = []
         error_occurred = False
+        raw_playlist_text = ""
         with open(f"{playlist_folder_path}/{filename}", "r") as f:
-            for line in f:
+            raw_playlist_text = f.read()
+            for line in raw_playlist_text.split("\n"):
                 line = line.strip()
                 if line.startswith("#") or line == "":
                     continue
@@ -121,7 +144,37 @@ def load_and_validate_playlists(playlist_folder_path, AUDIO):
         if error_occurred or not playlist:
             continue
 
-        playlists[filename] = playlist
+        # calculate the total duration of the playlist
+        total_duration = 0
+        audio_count = 0
+        pause_count = 0
+        for step in playlist:
+            if step["type"] == "audio":
+                total_duration += len(AUDIO[step["value"]]["audio"])
+                audio_count += 1
+            elif step["type"] == "pause":
+                total_duration += step["value"]
+                pause_count += 1
+
+        info = f"playlist name: {filename}\n"
+        info += f"* total duration: {total_duration} ms\n"
+        info += f"steps: {len(playlist)}\n"
+        info += f"  - audio steps: {audio_count}\n"
+        info += f"  - pause steps: {pause_count}\n\n"
+
+        # also add the playlist text to the info string
+        info += "playlist data:\n"
+        # tab the playlist text by 4 spaces
+        info += "\n".join(["    " + line for line in raw_playlist_text.split("\n")])
+        info += "\n\n\n"
+        info += "* 'total duration'  is an estimated value made by adding the duration of each audio file and pause duration in the playlist. This value should be fairly accurate if the playlist is played gaplessly. Otherwise, the real-world duration will be a bit longer, due to the time it takes to switch between audio files.\n\n"
+
+        playlists[filename] = {
+            "name": filename,
+            "data": playlist,
+            "info": info
+        }
+
 
     print(f"Loaded {len(playlists)} playlist files\n")
     return playlists

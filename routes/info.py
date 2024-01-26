@@ -6,7 +6,7 @@ if not hasattr(time, 'time_ns'):
 info_blueprint = Blueprint('info', __name__)
 
 @info_blueprint.route('/', methods=['GET'])
-def info():
+def root_documentation():
     text = """
     Available routes:
         - GET /ping                         --> pong
@@ -104,6 +104,7 @@ def info():
     """
     return Response(text, mimetype='text/plain'), 200
 
+
 @info_blueprint.route('/list', methods=['GET'])
 def list_items():
 	time_ns = time.time_ns()
@@ -126,3 +127,68 @@ def list_items():
 		return jsonify(audio=audio_names, playlist=playlist_names), 200
 
 	return Response(text, mimetype='text/plain'), 200
+
+@info_blueprint.route('/info', methods=['GET'])
+def info_note():
+    text = """
+        To get info about an audio file or playlist, use /info/<name>
+                (eg. /info/1.wav ==> 1.wav info)
+                (eg. /info/playlist_file.txt ==> playlist_file.txt info)
+
+    """
+    return Response(text, mimetype='text/plain'), 200
+
+
+
+@info_blueprint.route('/info/<name>', methods=['GET'])
+def item_info(name):
+    time_ns = time.time_ns()
+    print(f"{time_ns}: Received /playlist/{name}")
+
+    if not name:
+        print(f"\x1b[2m\x1b[31m    No playlist file name provided\x1b[0m")
+        return jsonify(message="No playlist file name provided"), 400
+
+    AUDIO = g.AUDIO
+    PLAYLIST = g.PLAYLIST
+
+    # if AUDIO is an empty dict, return 404 error
+    if not AUDIO:
+        print(f"\x1b[2m\x1b[31m    No audio files found\x1b[0m")
+        return jsonify(message="No audio file (.wav or .mp3) in the ./audio/ folder."), 404
+    
+    # if PLAYLIST is an empty dict, return 404 error
+    if not PLAYLIST:
+        print(f"\x1b[2m\x1b[31m    No playlist files found\x1b[0m")
+        return jsonify(message="No playlist file (.txt) in the ./playlists/ folder."), 404
+    
+    
+    # check if name is an audio file or playlist or neither
+    if name in AUDIO:
+        type = "audio"
+    elif name in PLAYLIST:
+        type = "playlist"
+    else:
+        print(f"\x1b[2m\x1b[31m    {name} not found\x1b[0m")
+        return jsonify(message=f"{name} does not exists in ./audio or ./playlists ; or it is invalid."), 404
+    
+
+    # if name is an audio file, return the audio file info
+    if type == "audio":
+        info = AUDIO[name]["info"]
+
+        # Return audio file info as plain text
+        return Response(info, mimetype='text/plain'), 200
+    
+    # if name is a playlist, return the playlist info
+    elif type == "playlist":
+        info = PLAYLIST[name]["info"]
+
+        # Return playlist info as plain text
+        return Response(info, mimetype='text/plain'), 200
+    
+    # Should not reach here, but handle it anyway
+    else:
+        print(f"\x1b[2m\x1b[31m    {name} not found\x1b[0m")
+        return jsonify(message=f"{name} does not exists in ./audio or ./playlists ; or it is invalid."), 404
+        

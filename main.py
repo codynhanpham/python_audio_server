@@ -22,6 +22,18 @@ import time
 if not hasattr(time, 'time_ns'):
     time.time_ns = lambda: int(time.time() * 1e9)
 
+import argparse
+args = sys.argv[:]
+# one liner, either just the executable or insert the executable at the beginning
+start_command = sys.executable if args[0] == sys.executable else ' '.join([sys.executable, args[0]])
+
+parser = argparse.ArgumentParser(
+                    prog=start_command,
+                    description="API server to play audio locally from remote client's requests.")
+parser.add_argument('--no-convert-to-s16', action='store_true', help='Skip all audio files\' bit depth conversion to 16-bit signed integer format and simply uses the original audio files. Note that playback is less reliable for audio files with bit depth > 16 bits.')
+
+CLI_ARGS = parser.parse_args()
+
 
 # instantiate the app
 app = Flask(__name__)
@@ -32,7 +44,7 @@ print("\n------------------ PYTHON AUDIO SERVER ------------------")
 print("The source code for this project is available at https://github.com/codynhanpham/python_audio_server\n\n")
 
 IP_ADDRESS = utils.get_local_ip()
-AUDIO = utils.load_audio()
+AUDIO = utils.load_audio(CLI_ARGS=CLI_ARGS)
 utils.PLAYLIST = utils.load_and_validate_playlists("playlists/", AUDIO)
 
 current_log_file = config.get("LOGFILE_PREFIX", "log_") + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
@@ -52,6 +64,7 @@ def before_request():
     g.BASE_PATH = BASE_PATH
     g._startup_cwd = _startup_cwd
     g.SHUTDOWN_TOKENS = utils.SHUTDOWN_TOKENS
+    g.CLI_ARGS = CLI_ARGS
 
 
 # This route must be in the main file, to be able to easily change the global variable current_log_file

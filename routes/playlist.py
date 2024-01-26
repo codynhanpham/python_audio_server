@@ -109,7 +109,7 @@ def play_playlist(name):
     # the prefix will be the LOGFILE_PREFIX env variable (or log) + "playlist_" + the current time
     current_log_file = logfile_prefix + "playlist_" + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
 
-    playlist = PLAYLIST[name]
+    playlist = PLAYLIST[name]["data"]
 
     # if the playlist is empty, return 404 error
     if not playlist:
