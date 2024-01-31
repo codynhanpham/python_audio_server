@@ -2,6 +2,14 @@
 
 Play audio on host computer when a remote client makes an HTTP request. The audio start timestamp is logged for future reference.
 
+
+## Work-in-Progress
+- [ ] Preload gapless version of playlist
+- [ ] Move to using simpleaudio. For this, must resample audio files when start up server
+- [ ] Ability to stop audio. Maybe a /stop endpoint
+- [ ] Sync the playback progress bar with the audio
+
+
 ## Installation
 There are 2 options to install the server: Pre-built binaries (Windows 10+ and Linux 14.04+) and Python.
 
