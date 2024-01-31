@@ -18,3 +18,4 @@ py_audio_server.exe
 
 Audio Server - Client GUI_resources/
 *.mlappinstall
+ClientGUI*.m

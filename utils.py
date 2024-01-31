@@ -1,11 +1,14 @@
+from concurrent.futures import ThreadPoolExecutor
+from functools import wraps
 from pydub import AudioSegment
 import os
 import numpy as np
 import socket
 import contextlib
-import os
 import sys
 from scipy.signal import chirp
+from time import sleep
+import math, shutil
 
 import time
 if not hasattr(time, 'time_ns'):
@@ -13,6 +16,15 @@ if not hasattr(time, 'time_ns'):
 
 PLAYLIST = {}
 SHUTDOWN_TOKENS = []
+
+_DEFAULT_POOL = ThreadPoolExecutor()
+
+def threadpool(f, executor=None):
+    @wraps(f)
+    def wrap(*args, **kwargs):
+        return (executor or _DEFAULT_POOL).submit(f, *args, **kwargs)
+
+    return wrap
 
 @contextlib.contextmanager
 def ignore_stderr():
@@ -26,6 +38,7 @@ def ignore_stderr():
     finally:
         os.dup2(old_stderr, 2)
         os.close(old_stderr)
+
 
 
 def resource_path(relative_path=''):
@@ -88,6 +101,7 @@ def load_audio(CLI_ARGS):
 
     print(f"Preloaded {len(audio)} audio files to RAM\n")
     return audio
+
 
 
 # a function to load and validate + process playlist files in playlists/ directory
@@ -175,9 +189,131 @@ def load_and_validate_playlists(playlist_folder_path, AUDIO):
             "info": info
         }
 
-
     print(f"Loaded {len(playlists)} playlist files\n")
     return playlists
+
+
+
+def progress(value, length=40, title="", vmin=0.0, vmax=1.0, postfix="", auto_resize=True):
+    """
+    Text progress bar
+    Parameters
+    ----------
+    value : float
+        Current value to be displayed as progress
+    vmin : float
+        Minimum value
+    vmax : float
+        Maximum value
+    length: int
+        Bar length (in character)
+    title: string
+        Text to be prepend to the bar
+    postfix: string
+        Text to be append at the end of the bar
+    auto_resize: bool
+        Auto adjust bar length to fit the screen size. If False, use the given length
+    """
+    LINE_UP = '\033[1A'
+    LINE_CLEAR = '\x1b[2K'
+    # Block progression is 1/8
+    blocks = ["", "▏","▎","▍","▌","▋","▊","▉","█"]
+    vmin = vmin or 0.0
+    vmax = vmax or 1.0
+    lsep, rsep = "▏", "▕"
+
+    # if title not end with a whitespace, add one
+    if title and not title[-1].isspace(): title += " "
+    # if postfix not start with a whitespace, add one
+    if postfix and not postfix[0].isspace(): postfix = " " + postfix
+
+    # Auto adjust length to fit the screen by subtracting the length of title, lsep, rsep, percentage (10 char), and postfix
+    if auto_resize:
+        cols, _ = shutil.get_terminal_size(fallback = (length, 1))
+        # limit cols to some % of terminal width
+        cols = int(cols * 0.93)
+        length = cols - len(title) - len(lsep) - len(rsep) - 10 - len(postfix)
+
+    # Normalize value
+    value = min(max(value, vmin), vmax)
+    value = (value-vmin)/float(vmax-vmin)
+    
+    v = value*length
+    x = math.floor(v) # integer part
+    y = v - x         # fractional part
+    base = 0.125      # 0.125 = 1/8
+    prec = 3
+    i = int(round(base*math.floor(float(y)/base),prec)/base)
+    bar = "█"*x + blocks[i]
+    n = length-len(bar)
+    bar = lsep + bar + " "*n + rsep
+
+
+    sys.stdout.write(LINE_UP + LINE_CLEAR + title + bar + postfix + " (%.1f%%)" % (value*100) + "\n")
+    sys.stdout.flush()
+
+
+# function progress_timer(time_ms) that uses tqdm to make a timer progress bar
+# Usage: playlist_progress_timer(6000, [[0, "First Half"], [2500, "Second Half"]], "Finished!")
+def playlist_progress_timer(total_time_ms, chapters, end_msg="", update_interval_ms=1000, time_stamp_offset=0):
+    # chapters is a list of [time_ms (end of chap), description] pairs
+    # for example, [[1000, "Chapter 1"], [total_time_ms, "Chapter 2"]]
+
+    # time_stamp_offset is the time when the audio started playing in the past, use it to calculate the actual progress since start
+    # if time_stamp_offset is 0, use the current time as the start time
+    print()
+    if time_stamp_offset == 0:
+        time_stamp_offset = time.time_ns() // 1_000_000
+
+    # find the longest chapter description and pad the other with spaces at the start to make them the same length
+    max_desc_len = len(max([chapter[1] for chapter in chapters], key=len))
+    for i in range(len(chapters)):
+        chapters[i][1] = chapters[i][1].rjust(max_desc_len)
+
+    total = total_time_ms // update_interval_ms
+    timef_total = time.strftime("%M:%S", time.gmtime(math.ceil(total_time_ms / 1000)))
+
+    desc = chapters[0][1] # default from 0
+
+    # loop start from the (current time - time_stamp_offset)
+    loopstart = (time.time_ns() // 1_000_000 - time_stamp_offset) // update_interval_ms
+    # there is a chance that loopstart is negative (process took a long time to spawn) --> return
+    if loopstart < 0:
+        return
+
+    currentChapter = 0
+    # update the actual currentChapter
+    for i in range(len(chapters)):
+        if chapters[i][0] > loopstart * update_interval_ms:
+            currentChapter = i
+            break
+
+    # The main loop for updating the progress bar
+    for i in range(loopstart, total):
+        # since processing time is not 0, update i to reflect the actual time from time_start_ms
+        i = (time.time_ns() // 1_000_000 - time_stamp_offset) // update_interval_ms
+
+        # update the actual currentChapter based on the current time
+        for j in range(currentChapter, len(chapters)):
+            if chapters[j][0] > i * update_interval_ms:
+                currentChapter = j
+                break
+
+        desc = f"[{currentChapter + 1}/{len(chapters)}]  {chapters[currentChapter][1]}"
+        # format time as mm:ss playback / mm:ss total
+        # [00:05 / 1:00]
+        timef = time.strftime("%M:%S", time.gmtime(i * update_interval_ms / 1000))
+        timef = f"{timef} / {timef_total}"
+        
+        progress(i, vmax=total-1, title=desc, postfix=f"[{timef}]")
+
+        sleep(update_interval_ms / 1000)
+    
+    if end_msg != "":
+        print(end_msg)
+    print()
+
+
 
 def create_tone(frequency=440, duration=100, volume=60, sample_rate=192000, edge=0):
     # create a tone and convert to the pydub audio segment format
@@ -331,6 +467,7 @@ def create_sweep(mode: str, start_frequency=440, end_frequency=440, duration=100
     # Convert to audio segment
     tone = AudioSegment(y.tobytes(), frame_rate=sample_rate, sample_width=2, channels=1)
     return tone
+
 
 
 # a class to create and handle expiring of variables --> use for creating and handling of tokens

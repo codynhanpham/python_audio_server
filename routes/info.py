@@ -19,6 +19,11 @@ def root_documentation():
 						(eg. /list?json=true ==> {"audio": [...], "playlist": [...]})
 
 
+        - GET /info/<name>                  --> get info about an audio file or playlist
+                (eg. /info/1.wav ==> 1.wav info)
+                (eg. /info/playlist_file.txt ==> playlist_file.txt info)
+
+
         - GET /startnewlog                  --> start a new log file
                 (eg. /startnewlog ==> Started new log file: ./logs/log_20210321-171234.csv)
 
@@ -75,8 +80,12 @@ def root_documentation():
                 * The <hash> is the first 8 characters of the SHA256 hash of the playlist file. This serves as a unique identifier for the playlist, so that no two duplicate playlists are created.
 
 
-        - GET /playlist/<playlist_name>     --> play a playlist on the server
+        - GET /playlist/<playlist_name>     --> play a playlist on the server, more verbal but have gaps between files/steps
                 (eg. /playlist/playlist_file.txt ==> playlist_file.txt started playing on the server)
+
+        
+        - GET /playlist/gapless/<playlist>  --> play a playlist on the server, less verbal (similar to /play) but gapless
+                (eg. /playlist/gapless/playlist_file.txt ==> playlist_file.txt started playing on the server)
 
 
         - GET /generate_batch_files         --> generate a .zip containing batch files to request the audio files and playlists (close when audio file is finished playing)
@@ -100,6 +109,33 @@ def root_documentation():
         - /play/random and /playlist will always create a new log file for that session playback. The log file will contain \"playrandom\" or \"playlist\" in the file name.
 
         - /playlist/create will also hot reload the playlists folder, so you can create a new playlist and play it right away.
+
+        
+
+    Start-up arguments:
+        When starting the server, you can specify the following arguments:
+            -h, --help: Show help message with all up-to-date available arguments. If -h is different from this documentation, then the the -h argument will take precedence.
+            -pb, --progress-bar: Show progress bar when playing playlists gaplessly. The progress bar is not accurate, but it is a good estimate of the progress.
+            --no-convert-to-s16: Skip all audio files' bit depth conversion to 16-bit signed integer format and simply uses the original audio files. Note that playback is less reliable for audio files with bit depth > 16 bits.
+
+
+        Example:
+            python main.py -pb --no-convert-to-s16
+
+            py_audio_server.exe -pb --no-convert-to-s16
+
+            ./py_audio_server -pb --no-convert-to-s16
+
+
+    
+    Config File:
+        You can change the port number and the log file's prefix by creating a .env file in the same directory as main.py or the executable.
+
+        The .env file should look like this:
+            PORT=5055
+            LOGFILE_PREFIX
+
+        If the .env file is not found, the default port number is 5050 and the default log file prefix is "log_".
 
     """
     return Response(text, mimetype='text/plain'), 200
@@ -143,25 +179,14 @@ def info_note():
 @info_blueprint.route('/info/<name>', methods=['GET'])
 def item_info(name):
     time_ns = time.time_ns()
-    print(f"{time_ns}: Received /playlist/{name}")
+    print(f"{time_ns}: Received /info/{name}")
 
     if not name:
         print(f"\x1b[2m\x1b[31m    No playlist file name provided\x1b[0m")
         return jsonify(message="No playlist file name provided"), 400
 
     AUDIO = g.AUDIO
-    PLAYLIST = g.PLAYLIST
-
-    # if AUDIO is an empty dict, return 404 error
-    if not AUDIO:
-        print(f"\x1b[2m\x1b[31m    No audio files found\x1b[0m")
-        return jsonify(message="No audio file (.wav or .mp3) in the ./audio/ folder."), 404
-    
-    # if PLAYLIST is an empty dict, return 404 error
-    if not PLAYLIST:
-        print(f"\x1b[2m\x1b[31m    No playlist files found\x1b[0m")
-        return jsonify(message="No playlist file (.txt) in the ./playlists/ folder."), 404
-    
+    PLAYLIST = g.PLAYLIST    
     
     # check if name is an audio file or playlist or neither
     if name in AUDIO:
