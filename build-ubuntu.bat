@@ -1,8 +1,5 @@
 @REM Create a temporary container to build the project
-@REM Using the trusty-python36 image, and the git repo github.com/codynhanpham/python_audio_server
+@REM Using the trusty-python37 image, and the git repo github.com/codynhanpham/python_audio_server
 
-@REM Use this command to build the project with PyAudio and FFmpeg
-docker run --name python36-audio-server-build-temp -it -v "%cd%:/app" trusty-python36 /bin/sh -c "cd /app && python3 -m venv linux-venv && . linux-venv/bin/activate && pip3 install -U numpy PyAudio==0.2.14 argparse pydub flask waitress python-dotenv scipy && pip3 install pyinstaller==3.6 && pip3 freeze > requirement_linux.txt && pyinstaller -F --name py_audio_server --add-binary=\"bin/ffmpeg:bin\" --add-binary=\"bin/ffprobe:bin\" --add-binary=\"bin/async_get.exe:bin\" --hidden-import=\"scipy.special.cython_special\" main.py" && docker cp python36-audio-server-build-temp:/app/dist . && docker rm python36-audio-server-build-temp
-
-@REM Use this command to build the project with SimpleAudio and FFmpeg (more stable, but can't handle weird audio sample rates)
-:: docker run --name python36-audio-server-build-temp -it -v "%cd%:/app" trusty-python36 /bin/sh -c "cd /app && python3 -m venv linux-venv && . linux-venv/bin/activate && pip3 install -U numpy simpleaudio argparse pydub flask waitress python-dotenv scipy && pip3 install pyinstaller==3.6 && pip3 freeze > requirement_linux.txt && pyinstaller -F --name py_audio_server --add-binary=\"bin/ffmpeg:bin\" --add-binary=\"bin/ffprobe:bin\" --add-binary=\"bin/async_get.exe:bin\" --hidden-import=\"scipy.special.cython_special\" main.py" && docker cp python36-audio-server-build-temp:/app/dist . && docker rm python36-audio-server-build-temp
+@REM Use this command to build the project with SimpleAudio and FFmpeg
+docker run --name python37-audio-server-build-temp -it -v "%cd%:/app" trusty-python37 /bin/sh -c "cd /app && python3.7 -m venv linux-venv && . linux-venv/bin/activate && pip3 install -U numpy simpleaudio argparse pydub flask waitress python-dotenv scipy && pip3 install pyinstaller==5.13.2 && pip3 freeze > requirements_linux.txt && pyinstaller -F --name py_audio_server --add-binary=\"bin/ffmpeg:bin\" --add-binary=\"bin/ffprobe:bin\" --add-binary=\"bin/async_get.exe:bin\" --hidden-import=\"scipy.special.cython_special\" main.py" && docker rm python37-audio-server-build-temp

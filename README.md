@@ -4,6 +4,8 @@ Play audio on host computer when a remote client makes an HTTP request. The audi
 
 
 ## Work-in-Progress
+- [x] Upgrade project to Python 3.7
+- [ ] Smoothing the audio transition between songs in playlist (Eliminate the clicking sound)
 - [ ] Preload gapless version of playlist
 - [ ] Move to using simpleaudio. For this, must resample audio files when start up server
 - [ ] Ability to stop audio. Maybe a /stop endpoint
@@ -67,8 +69,8 @@ If the client is on a different network, an easy way to connect is to use [Tails
 
 
 ## Ubuntu 14.04 Trusty
-This Python code is made sure to work on Ubuntu 14.04 Trusty. The easiest way to run this code on Trusty is to use the pre-built binaries. If you want to run the Python code, you will need to install Python 3.6.
+This Python code is made sure to work on Ubuntu 14.04 Trusty. The easiest way to run this code on Trusty is to use the pre-built binaries. If you want to run the Python code, you will need to install Python. The code is written in Python 3.7, and the bundled executable should be compatible with Trusty.
 
-As you may know, Trusty is old and the PPA for Python 3.6 is not available anymore anywhere (I looked around, yes, for a few hours). To install Python 3.6, you will need to build it from source. I have created a Dockerfile that will help you create a Docker image with Python 3.6 installed. From there, you can clone the repo, then run the `build-ubuntu.bat` file I included to build the code.
+Navigate to the folder [make-docker-image_trusty-python3.7](/make-docker-image_trusty-python3.7) to see the Dockerfile and the script to build the Docker image. The Docker image is built on Ubuntu 14.04 Trusty and has Python 3.7 installed. The Docker image is used for the PyInstaller to build the pre-built binaries.
 
-The Dockerfile is located in the [`make-docker-image_trusty-python3.6` directory](/make-docker-image_trusty-python3.6/). Follow the instructions in the README file to build the Docker image.
+Note, the old version of this project used Python 3.6. If you would prefer this for historical reasons, you can still browse files at the last commit before the upgrade to Python 3.7 [here](https://github.com/codynhanpham/python_audio_server/tree/8b46e1b234f78217132723a60f0af6b27d1348f8/make-docker-image_trusty-python3.6).

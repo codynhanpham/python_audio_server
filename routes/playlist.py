@@ -260,9 +260,8 @@ def play_playlist_gapless(name):
         chapters = []
         total_array_length = 0
 
-
-        # try to use numpy for concatenation
-        # but have to make sure all audio files are of the same sample rate, sample width, and channels
+        # try to use numpy for concatenation (simply appending AudioSegments is too slow as the AudioSegments are immutable)
+        # also, have to make sure all audio files are of the same sample rate, sample width, and channels
         # (forces resampling to 192000Hz, 2 channels, 16-bit sample width)
         nparrays = []
         for step in playlist:
@@ -270,16 +269,13 @@ def play_playlist_gapless(name):
                 audiofile = AUDIO[step["value"]]
                 source = audiofile["audio"]
 
-                # convert source to 192000Hz sample rate if it's not already
                 if source.frame_rate != 192000:
                     print("\x1b[34m    For gapless playback, all audio files will be resampled to 192000 Hz\x1b[0m")
                     source = source.set_frame_rate(192000)
 
-                # convert source to 2 channels if it's not already
                 if source.channels != 2:
                     source = source.set_channels(2)
 
-                # convert source to 16-bit sample width if it's not already
                 if source.sample_width != 2:
                     source = source.set_sample_width(2)
 

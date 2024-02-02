@@ -10,7 +10,7 @@ os.environ["PATH"] += os.pathsep + resource_path("bin")
 _startup_cwd = os.getcwd()
 
 BASE_PATH = resource_path()
-
+import multiprocessing
 import utils as utils
 
 from dotenv import dotenv_values
@@ -27,6 +27,8 @@ import argparse
 
 
 if __name__ == '__main__':
+    multiprocessing.freeze_support()
+
     config = dotenv_values(".env")
     args = sys.argv[:]
     start_command = sys.executable if args[0] == sys.executable else ' '.join([sys.executable, args[0]])

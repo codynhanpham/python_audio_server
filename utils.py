@@ -91,6 +91,17 @@ def load_audio(CLI_ARGS):
                     audio_segment = audio_segment.set_sample_width(2)
                     print(f"\x1b[2m\x1b[34m    Converting \"{filename}\" to 16-bit signed integer format...\x1b[0m")
 
+            # The server can only reliably play audio at sample rates of 8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000
+            # If the sample rate is not in the list, convert to the nearest higher valid sample rate
+            valid_sample_rates = [8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000]
+            if audio_segment.frame_rate not in valid_sample_rates:
+                print(f"\x1b[2m\x1b[33m    Sample rate of {audio_segment.frame_rate} Hz is not supported.\x1b[0m")
+                new_sample_rate = min([sr for sr in valid_sample_rates if sr > audio_segment.frame_rate])
+                print(f"\x1b[2m\x1b[34m    --> Converting \"{filename}\" to {new_sample_rate} Hz sample rate...\x1b[0m")
+                audio_segment = audio_segment.set_frame_rate(new_sample_rate)
+
+                info += f"sample_rate_resampled: {audio_segment.frame_rate} Hz\n"
+
 
             audio[filename] = {
                 "name": filename,
