@@ -249,6 +249,7 @@ def play_playlist_gapless(name):
         logwriter.writerow([time.time_ns(), f"Received /playlist/gapless/{name}", "success", client_time])
     print(f"\x1b[2m    Appended request info to log file: ./logs/{current_log_file}\x1b[0m")
 
+    highest_samplerate = max((AUDIO[step["value"]]["audio"].frame_rate for step in playlist if step["type"] == "audio"), default=48000)
 
     # For gapless, create a single audio segment from all the audio files in the playlist first
     # Since it is gapless, no need to add log for each audio file
@@ -256,22 +257,23 @@ def play_playlist_gapless(name):
     # Then play the single audio segment
     process = None
     try:
+        print(f"\x1b[34m    Note: For this playlist gapless playback, all audio files will be resampled to {highest_samplerate} Hz\x1b[0m")
+
         playlistSegment = AudioSegment.empty()
         chapters = []
         total_array_length = 0
 
         # try to use numpy for concatenation (simply appending AudioSegments is too slow as the AudioSegments are immutable)
         # also, have to make sure all audio files are of the same sample rate, sample width, and channels
-        # (forces resampling to 192000Hz, 2 channels, 16-bit sample width)
+        # (forces resampling to highest_samplerate Hz, 2 channels, 16-bit sample width)
         nparrays = []
         for step in playlist:
             if step["type"] == "audio":
                 audiofile = AUDIO[step["value"]]
                 source = audiofile["audio"]
 
-                if source.frame_rate != 192000:
-                    print("\x1b[34m    For gapless playback, all audio files will be resampled to 192000 Hz\x1b[0m")
-                    source = source.set_frame_rate(192000)
+                if source.frame_rate != highest_samplerate:
+                    source = utils.resample_audio(source, highest_samplerate)
 
                 if source.channels != 2:
                     source = source.set_channels(2)
@@ -288,10 +290,10 @@ def play_playlist_gapless(name):
                     nparrays.append(nparray)
 
                 # chapter with [end_time, name]
-                chapters.append([total_array_length / (192000 * 2) * 1000, step["value"]])
+                chapters.append([total_array_length / (highest_samplerate * 2) * 1000, step["value"]])
 
             elif step["type"] == "pause":
-                silence =  AudioSegment.silent(duration=step["value"], frame_rate=192000)
+                silence =  utils.create_tone(0, step["value"], 0, highest_samplerate, 0, 2)
                 nparray = silence.get_array_of_samples()
                 total_array_length += len(nparray)
 
@@ -299,13 +301,13 @@ def play_playlist_gapless(name):
                 if nparray is not None:
                     nparrays.append(nparray)
 
-                chapters.append([total_array_length / (192000 * 2) * 1000, f"pause_{step['value']}ms"])
+                chapters.append([total_array_length / (highest_samplerate * 2) * 1000, f"pause_{step['value']}ms"])
 
         # concatenate all numpy arrays in the list
         fullnparray = np.concatenate(nparrays)
 
         # convert the collective numpy array to AudioSegment
-        playlistSegment = AudioSegment(fullnparray.tobytes(), frame_rate=192000, sample_width=2, channels=2)
+        playlistSegment = AudioSegment(fullnparray.tobytes(), frame_rate=highest_samplerate, sample_width=2, channels=2)
 
 
         if g.CLI_ARGS.progress_bar:

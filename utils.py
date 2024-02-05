@@ -6,6 +6,7 @@ import numpy as np
 import socket
 import contextlib
 import sys
+import librosa
 from scipy.signal import chirp
 from time import sleep
 import math, shutil
@@ -59,6 +60,48 @@ def get_local_ip():
     return IP
 
 
+def audiosegment_to_librosawav(audiosegment):    
+    channel_sounds = audiosegment.split_to_mono()
+    samples = [s.get_array_of_samples() for s in channel_sounds]
+
+    fp_arr = np.array(samples).T.astype(np.float32)
+    fp_arr /= np.iinfo(samples[0].typecode).max
+    fp_arr = fp_arr.reshape(-1)
+
+    return fp_arr
+
+
+def resample_audio(audio_segment: AudioSegment, new_sample_rate: int):
+    """Need to `import librosa` to use this. Resample the audio segment to the new sample rate using `librosa`."""
+    
+    resample_type = "soxr_vhq"
+
+    # use librosa to resample the audio segment to the new sample rate
+    y = audiosegment_to_librosawav(audio_segment)
+
+    # Check if the audio is stereo
+    if audio_segment.channels == 2:
+        # Split the stereo audio into two mono audios
+        y_left = y[0::2]
+        y_right = y[1::2]
+
+
+        # Resample both channels separately
+        y_left = librosa.resample(y_left, orig_sr=audio_segment.frame_rate, target_sr=new_sample_rate, res_type=resample_type)
+        y_right = librosa.resample(y_right, orig_sr=audio_segment.frame_rate, target_sr=new_sample_rate, res_type=resample_type)
+
+        # Combine the two channels back into stereo
+        y = np.vstack((y_left, y_right)).flatten('F')
+    else:
+        # If the audio is mono, just resample it
+        y = librosa.resample(y, orig_sr=audio_segment.frame_rate, target_sr=new_sample_rate, res_type=resample_type)
+
+    # convert the resampled audio back to AudioSegment
+    y = (y * np.iinfo(np.int16).max).astype(np.int16)
+    audio_segment = AudioSegment(y.tobytes(), frame_rate=new_sample_rate, sample_width=2, channels=audio_segment.channels)
+
+    return audio_segment
+
 
 # a function to load and process audio files in audio/ directory
 def load_audio(CLI_ARGS):
@@ -76,6 +119,14 @@ def load_audio(CLI_ARGS):
             extension = filename.split(".")[-1]
             audio_segment = AudioSegment.from_file(f"audio/{filename}", format=extension)
 
+
+            # only work with 1 or 2 channels
+            if audio_segment.channels > 2:
+                print(f"\x1b[2m\x1b[31m    Error: \"{filename}\" has more than 2 channels. Only 1 or 2 channels (mono or stereo) are supported.\x1b[0m")
+                print(f"\x1b[2m\x1b[31m    Ignoring \"{filename}\"...\n\x1b[0m")
+                continue
+
+
             # create the info string
             info = f"filename: {filename}\n"
             info += f"duration: {len(audio_segment)} ms\n"
@@ -84,7 +135,6 @@ def load_audio(CLI_ARGS):
 
             if audio_segment.sample_width > 2:
                 print(f"\x1b[2m\x1b[33m    Warning (\"{filename}\"): bit depth > 16 bit may not playback correctly.\x1b[0m")
-                # audio_segment = audio_segment.set_sample_width(2)
 
                 # if CLI_ARGS.no_convert_to_s16 is false, auto convert to 16-bit signed integer format for reliability
                 if not CLI_ARGS.no_convert_to_s16:
@@ -93,15 +143,16 @@ def load_audio(CLI_ARGS):
 
             # The server can only reliably play audio at sample rates of 8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000
             # If the sample rate is not in the list, convert to the nearest higher valid sample rate
-            valid_sample_rates = [8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000]
+            valid_sample_rates = [16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000]
             if audio_segment.frame_rate not in valid_sample_rates:
-                print(f"\x1b[2m\x1b[33m    Sample rate of {audio_segment.frame_rate} Hz is not supported.\x1b[0m")
+                print(f"\x1b[33m    Warning (\"{filename}\"): Sample rate of {audio_segment.frame_rate} Hz is not supported.\x1b[0m")
                 new_sample_rate = min([sr for sr in valid_sample_rates if sr > audio_segment.frame_rate])
-                print(f"\x1b[2m\x1b[34m    --> Converting \"{filename}\" to {new_sample_rate} Hz sample rate...\x1b[0m")
-                audio_segment = audio_segment.set_frame_rate(new_sample_rate)
+                # new_sample_rate = 16000
+                print(f"\x1b[34m    --> Resampling \"{filename}\" to {new_sample_rate} Hz sample rate...\x1b[0m")
+                
+                audio_segment = resample_audio(audio_segment, new_sample_rate)
 
                 info += f"sample_rate_resampled: {audio_segment.frame_rate} Hz\n"
-
 
             audio[filename] = {
                 "name": filename,
@@ -207,7 +258,8 @@ def load_and_validate_playlists(playlist_folder_path, AUDIO):
 
 def progress(value, length=40, title="", vmin=0.0, vmax=1.0, postfix="", auto_resize=True):
     """
-    Text progress bar
+    Text progress bar.
+    
     Parameters
     ----------
     value : float
@@ -326,7 +378,7 @@ def playlist_progress_timer(total_time_ms, chapters, end_msg="", update_interval
 
 
 
-def create_tone(frequency=440, duration=100, volume=60, sample_rate=192000, edge=0):
+def create_tone(frequency=440, duration=100, volume=60, sample_rate=192000, edge=0, channels=1):
     # create a tone and convert to the pydub audio segment format
     
     # parse the args and validate their types: freq: float, duration: int, volume: float, sample_rate: int, edge: int (positive or negative)
@@ -364,6 +416,12 @@ def create_tone(frequency=440, duration=100, volume=60, sample_rate=192000, edge
         edge = 0
         print("\x1b[2m\x1b[31m    Edge is negative but Duration is < 2*Edge. Using default value for edge (0 ms).")
 
+    # limit channels to 1 or 2
+    if channels not in [1, 2]:
+        channels = 1
+        print("\x1b[2m\x1b[31m    Channels is invalid. Using default value (1).\x1b[0m")
+
+
     # modify the total duration if edge is specified:
     # edge < 0: the ramp duration is already included in the duration --> no modification
     # edge > 0: the ramp duration is not included in the duration --> add the ramp duration (2 * edge) to the duration
@@ -395,8 +453,11 @@ def create_tone(frequency=440, duration=100, volume=60, sample_rate=192000, edge
     # convert to 16-bit data
     y = y.astype(np.int16)
 
+    # duplicate the tone to the number of channels
+    y = np.tile(y, channels)
+
     # convert to audio segment
-    tone = AudioSegment(y.tobytes(), frame_rate=sample_rate, sample_width=2, channels=1)
+    tone = AudioSegment(y.tobytes(), frame_rate=sample_rate, sample_width=2, channels=channels)
     return tone
 
 
