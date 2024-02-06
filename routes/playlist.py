@@ -1,4 +1,3 @@
-import math
 from flask import Blueprint, jsonify, request, g, send_file
 
 import time, os
@@ -8,13 +7,10 @@ if not hasattr(time, 'time_ns'):
 import csv
 import hashlib
 import random
-from functools import reduce
 import numpy as np
 
-from pydub.playback import play
+from pydub.playback import play, _play_with_simpleaudio
 from pydub import AudioSegment
-
-from multiprocessing import Process
 
 import utils as utils
 
@@ -309,17 +305,13 @@ def play_playlist_gapless(name):
         # convert the collective numpy array to AudioSegment
         playlistSegment = AudioSegment(fullnparray.tobytes(), frame_rate=highest_samplerate, sample_width=2, channels=2)
 
-
-        if g.CLI_ARGS.progress_bar:
-            time_start_process = time.time_ns() // 1_000_000
-            # start a progress timer in a separate process
-            process = Process(target=utils.playlist_progress_timer, args=(len(playlistSegment), chapters, "", 50, time_start_process))
-            process.start()
-
         time_ns_playback = time.time_ns()
         print(f"\x1b[32m    {time_ns_playback}: Playing {name}...\x1b[0m")
         with utils.ignore_stderr():
-            play(playlistSegment)
+            # play(playlistSegment) # opt for simpleaudio instead of pydub's play instead, so the playback is non-blocking
+            sink = _play_with_simpleaudio(playlistSegment)
+            utils.playlist_progress_timer(len(playlistSegment), chapters, "", 50, time_ns_playback//1_000_000)
+            sink.wait_done()
             time_ns_end = time.time_ns()
         # terminate the progress timer
         if g.CLI_ARGS.progress_bar and process and process.is_alive():

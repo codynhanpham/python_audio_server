@@ -5,9 +5,10 @@ Play audio on host computer when a remote client makes an HTTP request. The audi
 
 ## Work-in-Progress
 - [x] Upgrade project to Python 3.7
-- [ ] Smoothing the audio transition between songs in playlist (Eliminate the clicking sound)
-- [ ] Preload gapless version of playlist
 - [ ] Move to using simpleaudio. For this, must resample audio files when start up server
+- [ ] More efficient way to pre-process audio files for playlist (resample, etc.)
+- [ ] Preload gapless version of playlist
+- [ ] Smoothing the audio transition between songs in playlist (Eliminate the clicking sound)
 - [ ] Ability to stop audio. Maybe a /stop endpoint
 - [ ] Sync the playback progress bar with the audio
 

@@ -355,6 +355,8 @@ def playlist_progress_timer(total_time_ms, chapters, end_msg="", update_interval
     for i in range(loopstart, total):
         # since processing time is not 0, update i to reflect the actual time from time_start_ms
         i = (time.time_ns() // 1_000_000 - time_stamp_offset) // update_interval_ms
+        if i > total:
+            break
 
         # update the actual currentChapter based on the current time
         for j in range(currentChapter, len(chapters)):
