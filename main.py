@@ -27,7 +27,7 @@ import argparse
 
 
 if __name__ == '__main__':
-    multiprocessing.freeze_support()
+    multiprocessing.freeze_support() # this is required for pyinstaller to work with multiprocessing
 
     config = dotenv_values(".env")
     args = sys.argv[:]
@@ -39,7 +39,7 @@ if __name__ == '__main__':
     parser.add_argument('--no-convert-to-s16', action='store_true', help='Skip all audio files\' bit depth conversion to 16-bit signed integer format and simply uses the original audio files. Note that playback is less reliable for audio files with bit depth > 16 bits.')
     parser.add_argument('-pb','--progress-bar', action='store_true', help='Show the progress bar when playing playlists gaplessly. The progress bar is only an estimate and likely be different from what is actually playing.')
 
-    CLI_ARGS = parser.parse_args()
+    CLI_ARGS, _ = parser.parse_known_args()
 
 
     # instantiate the app

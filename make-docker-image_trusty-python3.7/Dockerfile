@@ -27,7 +27,7 @@ RUN apt-get update && apt-get install -y \
     llvm \
     git \
     mecab-ipadic-utf8 \
-    libsndfile-dev \
+    libsndfile1 \
     gfortran
 
 # https://www.openssl.org/source/openssl-1.0.2u.tar.gz
