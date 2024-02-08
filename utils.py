@@ -103,281 +103,6 @@ def resample_audio(audio_segment: AudioSegment, new_sample_rate: int):
     return audio_segment
 
 
-# a function to load and process audio files in audio/ directory
-def load_audio(CLI_ARGS):
-    print("Preloading audio files in ./audio/*.wav ...")
-
-    # if audio/ directory doesn't exist, show a warning and return an empty dict
-    if not os.path.exists("audio/"):
-        print("\x1b[2m\x1b[31m    Error: Audio folder not found. Play functions will not work for this session.\x1b[0m")
-        return {}
-    
-    audio = {}
-    audio_types = [".wav", ".mp3", ".flac", ".ogg"]
-    for filename in os.listdir("audio/"):
-        if filename.endswith(tuple(audio_types)):
-            extension = filename.split(".")[-1]
-            audio_segment = AudioSegment.from_file(f"audio/{filename}", format=extension)
-
-
-            # only work with 1 or 2 channels
-            if audio_segment.channels > 2:
-                print(f"\x1b[2m\x1b[31m    Error: \"{filename}\" has more than 2 channels. Only 1 or 2 channels (mono or stereo) are supported.\x1b[0m")
-                print(f"\x1b[2m\x1b[31m    Ignoring \"{filename}\"...\n\x1b[0m")
-                continue
-
-
-            # create the info string
-            info = f"filename: {filename}\n"
-            info += f"duration: {len(audio_segment)} ms\n"
-            info += f"channels: {audio_segment.channels}\n"
-            info += f"sample_rate: {audio_segment.frame_rate} Hz\n"
-
-            if audio_segment.sample_width > 2:
-                print(f"\x1b[2m\x1b[33m    Warning (\"{filename}\"): bit depth > 16 bit may not playback correctly.\x1b[0m")
-
-                # if CLI_ARGS.no_convert_to_s16 is false, auto convert to 16-bit signed integer format for reliability
-                if not CLI_ARGS.no_convert_to_s16:
-                    audio_segment = audio_segment.set_sample_width(2)
-                    print(f"\x1b[2m\x1b[34m    Converting \"{filename}\" to 16-bit signed integer format...\x1b[0m")
-
-            # The server can only reliably play audio at sample rates of 8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000
-            # If the sample rate is not in the list, convert to the nearest higher valid sample rate
-            valid_sample_rates = [16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000]
-            if audio_segment.frame_rate not in valid_sample_rates:
-                print(f"\x1b[33m    Warning (\"{filename}\"): Sample rate of {audio_segment.frame_rate} Hz is not supported.\x1b[0m")
-                new_sample_rate = min([sr for sr in valid_sample_rates if sr > audio_segment.frame_rate])
-                # new_sample_rate = 16000
-                print(f"\x1b[34m    --> Resampling \"{filename}\" to {new_sample_rate} Hz sample rate...\x1b[0m")
-                
-                audio_segment = resample_audio(audio_segment, new_sample_rate)
-
-                info += f"sample_rate_resampled: {audio_segment.frame_rate} Hz\n"
-
-            audio[filename] = {
-                "name": filename,
-                "filename": f"audio/{filename}",
-                "audio": audio_segment,
-                "info": info
-            }
-
-    print(f"Preloaded {len(audio)} audio files to RAM\n")
-    return audio
-
-
-
-# a function to load and validate + process playlist files in playlists/ directory
-def load_and_validate_playlists(playlist_folder_path, AUDIO):
-    # if no playlist folder is found, skip loading playlists
-    if not os.path.exists(playlist_folder_path):
-        return {}
-
-    print("Loading playlist files in ./playlists/*.txt ...")
-
-    # Playlist: Key is the name of the file.txt, Value is a Vec of {type: "audio" or "pause", value: "filename" or "pause_duration in ms"}
-
-    playlists = {}
-    for filename in os.listdir(playlist_folder_path):
-        if not filename.endswith(".txt"):
-            continue
-
-        playlist = []
-        error_occurred = False
-        raw_playlist_text = ""
-        with open(f"{playlist_folder_path}/{filename}", "r") as f:
-            raw_playlist_text = f.read()
-            for line in raw_playlist_text.split("\n"):
-                line = line.strip()
-                if line.startswith("#") or line == "":
-                    continue
-
-                if line.startswith("pause_") and line.endswith("ms"):
-                    # pause format is pause_{duration in ms}ms
-                    try:
-                        int(line.split("_")[1][:-2])
-                        playlist.append({
-                        "type": "pause",
-                        "value": int(line.split("_")[1][:-2])
-                    })
-                    except:
-                        parsed = line.split("_")[1][:-2]
-                        print(f"\x1b[2m\x1b[31m    Error: Pause duration \"{parsed}\" is not a valid integer\x1b[0m")
-                        print(f"\x1b[2m    Ignoring playlist \"{filename}\"...\n\x1b[0m")
-                        error_occurred = True
-                        break
-                elif line in AUDIO:
-                    playlist.append({
-                        "type": "audio",
-                        "value": line
-                    })
-                else:
-                    print(f"\x1b[2m\x1b[31m    Error: Audio file \"{line}\" not found\x1b[0m")
-                    print("\x1b[2m    Please make sure the audio file exists in the \"audio\" folder and try again.\x1b[0m")
-                    print(f"\x1b[2m    Ignoring playlist \"{filename}\"...\n\x1b[0m");
-                    error_occurred = True
-                    break
-
-        if error_occurred or not playlist:
-            continue
-
-        # calculate the total duration of the playlist
-        total_duration = 0
-        audio_count = 0
-        pause_count = 0
-        for step in playlist:
-            if step["type"] == "audio":
-                total_duration += len(AUDIO[step["value"]]["audio"])
-                audio_count += 1
-            elif step["type"] == "pause":
-                total_duration += step["value"]
-                pause_count += 1
-
-        info = f"playlist name: {filename}\n"
-        info += f"* total duration: {total_duration} ms\n"
-        info += f"steps: {len(playlist)}\n"
-        info += f"  - audio steps: {audio_count}\n"
-        info += f"  - pause steps: {pause_count}\n\n"
-
-        # also add the playlist text to the info string
-        info += "playlist data:\n"
-        # tab the playlist text by 4 spaces
-        info += "\n".join(["    " + line for line in raw_playlist_text.split("\n")])
-        info += "\n\n\n"
-        info += "* 'total duration'  is an estimated value made by adding the duration of each audio file and pause duration in the playlist. This value should be fairly accurate if the playlist is played gaplessly. Otherwise, the real-world duration will be a bit longer, due to the time it takes to switch between audio files.\n\n"
-
-        playlists[filename] = {
-            "name": filename,
-            "data": playlist,
-            "info": info
-        }
-
-    print(f"Loaded {len(playlists)} playlist files\n")
-    return playlists
-
-
-
-def progress(value, length=40, title="", vmin=0.0, vmax=1.0, postfix="", auto_resize=True):
-    """
-    Text progress bar.
-    
-    Parameters
-    ----------
-    value : float
-        Current value to be displayed as progress
-    vmin : float
-        Minimum value
-    vmax : float
-        Maximum value
-    length: int
-        Bar length (in character)
-    title: string
-        Text to be prepend to the bar
-    postfix: string
-        Text to be append at the end of the bar
-    auto_resize: bool
-        Auto adjust bar length to fit the screen size. If False, use the given length
-    """
-    LINE_UP = '\033[1A'
-    LINE_CLEAR = '\x1b[2K'
-    # Block progression is 1/8
-    blocks = ["", "▏","▎","▍","▌","▋","▊","▉","█"]
-    vmin = vmin or 0.0
-    vmax = vmax or 1.0
-    lsep, rsep = "▏", "▕"
-
-    # if title not end with a whitespace, add one
-    if title and not title[-1].isspace(): title += " "
-    # if postfix not start with a whitespace, add one
-    if postfix and not postfix[0].isspace(): postfix = " " + postfix
-
-    # Auto adjust length to fit the screen by subtracting the length of title, lsep, rsep, percentage (10 char), and postfix
-    if auto_resize:
-        cols, _ = shutil.get_terminal_size(fallback = (length, 1))
-        # limit cols to some % of terminal width
-        cols = int(cols * 0.93)
-        length = cols - len(title) - len(lsep) - len(rsep) - 10 - len(postfix)
-
-    # Normalize value
-    value = min(max(value, vmin), vmax)
-    value = (value-vmin)/float(vmax-vmin)
-    
-    v = value*length
-    x = math.floor(v) # integer part
-    y = v - x         # fractional part
-    base = 0.125      # 0.125 = 1/8
-    prec = 3
-    i = int(round(base*math.floor(float(y)/base),prec)/base)
-    bar = "█"*x + blocks[i]
-    n = length-len(bar)
-    bar = lsep + bar + " "*n + rsep
-
-
-    sys.stdout.write(LINE_UP + LINE_CLEAR + title + bar + postfix + " (%.1f%%)" % (value*100) + "\n")
-    sys.stdout.flush()
-
-
-# function progress_timer(time_ms) that uses tqdm to make a timer progress bar
-# Usage: playlist_progress_timer(6000, [[0, "First Half"], [2500, "Second Half"]], "Finished!")
-def playlist_progress_timer(total_time_ms, chapters, end_msg="", update_interval_ms=1000, time_stamp_offset=0):
-    # chapters is a list of [time_ms (end of chap), description] pairs
-    # for example, [[1000, "Chapter 1"], [total_time_ms, "Chapter 2"]]
-
-    # time_stamp_offset is the time when the audio started playing in the past, use it to calculate the actual progress since start
-    # if time_stamp_offset is 0, use the current time as the start time
-    print()
-    if time_stamp_offset == 0:
-        time_stamp_offset = time.time_ns() // 1_000_000
-
-    # find the longest chapter description and pad the other with spaces at the start to make them the same length
-    max_desc_len = len(max([chapter[1] for chapter in chapters], key=len))
-    for i in range(len(chapters)):
-        chapters[i][1] = chapters[i][1].rjust(max_desc_len)
-
-    total = total_time_ms // update_interval_ms
-    timef_total = time.strftime("%M:%S", time.gmtime(math.ceil(total_time_ms / 1000)))
-
-    desc = chapters[0][1] # default from 0
-
-    # loop start from the (current time - time_stamp_offset)
-    loopstart = (time.time_ns() // 1_000_000 - time_stamp_offset) // update_interval_ms
-    # there is a chance that loopstart is negative (process took a long time to spawn) --> return
-    if loopstart < 0:
-        return
-
-    currentChapter = 0
-    # update the actual currentChapter
-    for i in range(len(chapters)):
-        if chapters[i][0] > loopstart * update_interval_ms:
-            currentChapter = i
-            break
-
-    # The main loop for updating the progress bar
-    for i in range(loopstart, total):
-        # since processing time is not 0, update i to reflect the actual time from time_start_ms
-        i = (time.time_ns() // 1_000_000 - time_stamp_offset) // update_interval_ms
-        if i > total:
-            break
-
-        # update the actual currentChapter based on the current time
-        for j in range(currentChapter, len(chapters)):
-            if chapters[j][0] > i * update_interval_ms:
-                currentChapter = j
-                break
-
-        desc = f"[{currentChapter + 1}/{len(chapters)}]  {chapters[currentChapter][1]}"
-        # format time as mm:ss playback / mm:ss total
-        # [00:05 / 1:00]
-        timef = time.strftime("%M:%S", time.gmtime(i * update_interval_ms / 1000))
-        timef = f"{timef} / {timef_total}"
-        
-        progress(i, vmax=total-1, title=desc, postfix=f"[{timef}]")
-
-        sleep(update_interval_ms / 1000)
-    
-    if end_msg != "":
-        print(end_msg)
-    print()
-
 
 
 def create_tone(frequency=440, duration=100, volume=60, sample_rate=192000, edge=0, channels=1):
@@ -541,6 +266,360 @@ def create_sweep(mode: str, start_frequency=440, end_frequency=440, duration=100
     # Convert to audio segment
     tone = AudioSegment(y.tobytes(), frame_rate=sample_rate, sample_width=2, channels=1)
     return tone
+
+
+
+# a function to load and process audio files in audio/ directory
+def load_audio(CLI_ARGS):
+    print("Preloading audio files in ./audio/*.wav ...")
+
+    # if audio/ directory doesn't exist, show a warning and return an empty dict
+    if not os.path.exists("audio/"):
+        print("\x1b[2m\x1b[31m    Error: Audio folder not found. Play functions will not work for this session.\x1b[0m")
+        return {}
+    
+    audio = {}
+    audio_types = [".wav", ".mp3", ".flac", ".ogg"]
+    for filename in os.listdir("audio/"):
+        if filename.endswith(tuple(audio_types)):
+            extension = filename.split(".")[-1]
+            audio_segment = AudioSegment.from_file(f"audio/{filename}", format=extension)
+
+
+            # only work with 1 or 2 channels
+            if audio_segment.channels > 2:
+                print(f"\x1b[2m\x1b[31m    Error: \"{filename}\" has more than 2 channels. Only 1 or 2 channels (mono or stereo) are supported.\x1b[0m")
+                print(f"\x1b[2m\x1b[31m    Ignoring \"{filename}\"...\n\x1b[0m")
+                continue
+
+
+            # create the info string
+            info = f"filename: {filename}\n"
+            info += f"duration: {len(audio_segment)} ms\n"
+            info += f"channels: {audio_segment.channels}\n"
+            info += f"sample_rate: {audio_segment.frame_rate} Hz\n"
+
+            if audio_segment.sample_width > 2:
+                print(f"\x1b[2m\x1b[33m    Warning (\"{filename}\"): bit depth > 16 bit may not playback correctly.\x1b[0m")
+
+                # if CLI_ARGS.no_convert_to_s16 is false, auto convert to 16-bit signed integer format for reliability
+                if not CLI_ARGS.no_convert_to_s16:
+                    audio_segment = audio_segment.set_sample_width(2)
+                    print(f"\x1b[2m\x1b[34m    Converting \"{filename}\" to 16-bit signed integer format...\x1b[0m")
+
+            # The server can only reliably play audio at sample rates of 8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000
+            # If the sample rate is not in the list, convert to the nearest higher valid sample rate
+            valid_sample_rates = [16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000]
+            if audio_segment.frame_rate not in valid_sample_rates:
+                print(f"\x1b[33m    Warning (\"{filename}\"): Sample rate of {audio_segment.frame_rate} Hz is not supported.\x1b[0m")
+                new_sample_rate = min([sr for sr in valid_sample_rates if sr > audio_segment.frame_rate])
+                # new_sample_rate = 16000
+                print(f"\x1b[34m    --> Resampling \"{filename}\" to {new_sample_rate} Hz sample rate...\x1b[0m")
+                
+                audio_segment = resample_audio(audio_segment, new_sample_rate)
+
+                info += f"sample_rate_resampled: {audio_segment.frame_rate} Hz\n"
+
+            audio[filename] = {
+                "name": filename,
+                "filename": f"audio/{filename}",
+                "audio": audio_segment,
+                "info": info
+            }
+
+    print(f"Preloaded {len(audio)} audio files to RAM\n")
+    return audio
+
+
+
+def make_gapless_playlist(playlist, audio, playlist_name="this playlist"):
+    # get the unique steps in the playlist to pre-process the audio files / pauses if necessary
+    # filter for unique values in the playlist
+    unique_steps = list(set((step["type"], step["value"]) for step in playlist))
+
+    # find the highest sample rate in the audio files, or default to 48000 Hz
+    highest_sample_rate = max([audio[step[1]]["audio"].frame_rate for step in unique_steps if step[0] == "audio"], default=48000)
+
+    # print note if all audio files are not at the same sample rate and not at the highest sample rate
+    if len(set([audio[step[1]]["audio"].frame_rate for step in unique_steps if step[0] == "audio"])) > 1:
+        print(f"\x1b[34m    Note: For \"{playlist_name}\" gapless playback, all audio files will be resampled to {highest_sample_rate} Hz\x1b[0m")
+
+    # Process the audio and pause steps in the playlist
+    # processed_audio = {filename: audio_segment, ...}
+    # processed_pauses = {duration: audio_segment, ...}
+    # This way, even if the same audio file is used multiple times in the playlist, it only needs to be processed once
+    processed_audio = {}
+    processed_pauses = {}
+    for step in unique_steps:
+        if step[0] == "audio":
+            audio_segment = audio[step[1]]["audio"]
+
+            if audio_segment.frame_rate != highest_sample_rate:
+                print(f"\x1b[2m\x1b[34m    --> Resampling \"{step[1]}\" to {highest_sample_rate} Hz sample rate...\x1b[0m")
+                audio_segment = resample_audio(audio_segment, highest_sample_rate)
+
+            if audio_segment.channels != 2:
+                audio_segment = audio_segment.set_channels(2)
+
+            if audio_segment.sample_width != 2:
+                audio_segment = audio_segment.set_sample_width(2)
+
+            # convert the sample to array format
+            nparray = audio_segment.get_array_of_samples()
+
+            # add the audio segment to the processed_audio dict
+            processed_audio[step[1]] = nparray
+
+        elif step[0] == "pause":
+            # create a pause audio segment
+            silence =  create_tone(frequency=0, duration=step[1], volume=0, sample_rate=highest_sample_rate, edge=0, channels=2)
+            nparray = silence.get_array_of_samples()
+
+            # add the pause audio segment to the processed_pauses dict
+            processed_pauses[step[1]] = nparray
+
+        
+    # From the processed audio and pause segments, create the collection of numpy arrays for the playlist
+    chapters = []
+    total_array_length = 0
+    nparrays = []
+    for step in playlist:
+        if step["type"] == "audio":
+            nparrays.append(processed_audio[step["value"]])
+            total_array_length += len(processed_audio[step["value"]])
+            chapters.append([total_array_length / (highest_sample_rate * 2) * 1000, step["value"]])
+        elif step["type"] == "pause":
+            nparrays.append(processed_pauses[step["value"]])
+            total_array_length += len(processed_pauses[step["value"]])
+            chapters.append([total_array_length / (highest_sample_rate * 2) * 1000, f"pause_{step['value']}ms"])
+
+    # concatenate the numpy arrays to create the gapless playlist
+    gapless_playlist = np.concatenate(nparrays)
+    playlistSegment = AudioSegment(gapless_playlist.tobytes(), frame_rate=highest_sample_rate, sample_width=2, channels=2)
+
+    return {
+        "segment": playlistSegment,
+        "chapters": chapters
+    }
+
+
+# a function to load and validate + process playlist files in playlists/ directory
+def load_and_validate_playlists(playlist_folder_path, AUDIO):
+    # if no playlist folder is found, skip loading playlists
+    if not os.path.exists(playlist_folder_path):
+        return {}
+
+    print("Loading playlist files in ./playlists/*.txt ...")
+
+    # Playlist: Key is the name of the file.txt, Value is a Vec of {type: "audio" or "pause", value: "filename" or "pause_duration in ms"}
+
+    playlists = {}
+    for filename in os.listdir(playlist_folder_path):
+        if not filename.endswith(".txt"):
+            continue
+
+        playlist = []
+        error_occurred = False
+        raw_playlist_text = ""
+        with open(f"{playlist_folder_path}/{filename}", "r") as f:
+            raw_playlist_text = f.read()
+            for line in raw_playlist_text.split("\n"):
+                line = line.strip()
+                if line.startswith("#") or line == "":
+                    continue
+
+                if line.startswith("pause_") and line.endswith("ms"):
+                    # pause format is pause_{duration in ms}ms
+                    try:
+                        int(line.split("_")[1][:-2])
+                        playlist.append({
+                        "type": "pause",
+                        "value": int(line.split("_")[1][:-2])
+                    })
+                    except:
+                        parsed = line.split("_")[1][:-2]
+                        print(f"\x1b[2m\x1b[31m    Error: Pause duration \"{parsed}\" is not a valid integer\x1b[0m")
+                        print(f"\x1b[2m    Ignoring playlist \"{filename}\"...\n\x1b[0m")
+                        error_occurred = True
+                        break
+                elif line in AUDIO:
+                    playlist.append({
+                        "type": "audio",
+                        "value": line
+                    })
+                else:
+                    print(f"\x1b[2m\x1b[31m    Error: Audio file \"{line}\" not found\x1b[0m")
+                    print("\x1b[2m    Please make sure the audio file exists in the \"audio\" folder and try again.\x1b[0m")
+                    print(f"\x1b[2m    Ignoring playlist \"{filename}\"...\n\x1b[0m");
+                    error_occurred = True
+                    break
+
+        if error_occurred or not playlist:
+            continue
+
+        # calculate the total duration of the playlist
+        total_duration = 0
+        audio_count = 0
+        pause_count = 0
+        for step in playlist:
+            if step["type"] == "audio":
+                total_duration += len(AUDIO[step["value"]]["audio"])
+                audio_count += 1
+            elif step["type"] == "pause":
+                total_duration += step["value"]
+                pause_count += 1
+
+        info = f"playlist name: {filename}\n"
+        info += f"* total duration: {total_duration} ms\n"
+        info += f"steps: {len(playlist)}\n"
+        info += f"  - audio steps: {audio_count}\n"
+        info += f"  - pause steps: {pause_count}\n\n"
+
+        # also add the playlist text to the info string
+        info += "playlist data:\n"
+        # tab the playlist text by 4 spaces
+        info += "\n".join(["    " + line for line in raw_playlist_text.split("\n")])
+        info += "\n\n\n"
+        info += "* 'total duration'  is an estimated value made by adding the duration of each audio file and pause duration in the playlist. This value should be fairly accurate if the playlist is played gaplessly. Otherwise, the real-world duration will be a bit longer, due to the time it takes to switch between audio files.\n\n"
+
+        gapless_playlist = make_gapless_playlist(playlist, AUDIO, filename)
+
+        playlists[filename] = {
+            "name": filename,
+            "data": playlist,
+            "info": info,
+            "gapless": gapless_playlist
+        }
+
+    print(f"Loaded {len(playlists)} playlist files\n")
+    return playlists
+
+
+
+def progress(value, length=40, title="", vmin=0.0, vmax=1.0, postfix="", auto_resize=True):
+    """
+    Text progress bar.
+    
+    Parameters
+    ----------
+    value : float
+        Current value to be displayed as progress
+    vmin : float
+        Minimum value
+    vmax : float
+        Maximum value
+    length: int
+        Bar length (in character)
+    title: string
+        Text to be prepend to the bar
+    postfix: string
+        Text to be append at the end of the bar
+    auto_resize: bool
+        Auto adjust bar length to fit the screen size. If False, use the given length
+    """
+    LINE_UP = '\033[1A'
+    LINE_CLEAR = '\x1b[2K'
+    # Block progression is 1/8
+    blocks = ["", "▏","▎","▍","▌","▋","▊","▉","█"]
+    vmin = vmin or 0.0
+    vmax = vmax or 1.0
+    lsep, rsep = "▏", "▕"
+
+    # if title not end with a whitespace, add one
+    if title and not title[-1].isspace(): title += " "
+    # if postfix not start with a whitespace, add one
+    if postfix and not postfix[0].isspace(): postfix = " " + postfix
+
+    # Auto adjust length to fit the screen by subtracting the length of title, lsep, rsep, percentage (10 char), and postfix
+    if auto_resize:
+        cols, _ = shutil.get_terminal_size(fallback = (length, 1))
+        # limit cols to some % of terminal width
+        cols = int(cols * 0.93)
+        length = cols - len(title) - len(lsep) - len(rsep) - 10 - len(postfix)
+
+    # Normalize value
+    value = min(max(value, vmin), vmax)
+    value = (value-vmin)/float(vmax-vmin)
+    
+    v = value*length
+    x = math.floor(v) # integer part
+    y = v - x         # fractional part
+    base = 0.125      # 0.125 = 1/8
+    prec = 3
+    i = int(round(base*math.floor(float(y)/base),prec)/base)
+    bar = "█"*x + blocks[i]
+    n = length-len(bar)
+    bar = lsep + bar + " "*n + rsep
+
+
+    sys.stdout.write(LINE_UP + LINE_CLEAR + title + bar + postfix + " (%.1f%%)" % (value*100) + "\n")
+    sys.stdout.flush()
+
+
+# function progress_timer(time_ms) that uses tqdm to make a timer progress bar
+# Usage: playlist_progress_timer(6000, [[0, "First Half"], [2500, "Second Half"]], "Finished!")
+def playlist_progress_timer(total_time_ms, chapters, end_msg="", update_interval_ms=1000, time_stamp_offset=0):
+    # chapters is a list of [time_ms (end of chap), description] pairs
+    # for example, [[1000, "Chapter 1"], [total_time_ms, "Chapter 2"]]
+
+    # time_stamp_offset is the time when the audio started playing in the past, use it to calculate the actual progress since start
+    # if time_stamp_offset is 0, use the current time as the start time
+    print("\n")
+    if time_stamp_offset == 0:
+        time_stamp_offset = time.time_ns() // 1_000_000
+
+    # find the longest chapter description and pad the other with spaces at the start to make them the same length
+    max_desc_len = len(max([chapter[1] for chapter in chapters], key=len))
+    for i in range(len(chapters)):
+        chapters[i][1] = chapters[i][1].rjust(max_desc_len)
+
+    total = total_time_ms // update_interval_ms
+    timef_total = time.strftime("%M:%S", time.gmtime(math.ceil(total_time_ms / 1000)))
+
+    desc = chapters[0][1] # default from 0
+
+    # loop start from the (current time - time_stamp_offset)
+    loopstart = (time.time_ns() // 1_000_000 - time_stamp_offset) // update_interval_ms
+    # there is a chance that loopstart is negative (process took a long time to spawn) --> return
+    if loopstart < 0:
+        return
+
+    currentChapter = 0
+    # update the actual currentChapter
+    for i in range(len(chapters)):
+        if chapters[i][0] > loopstart * update_interval_ms:
+            currentChapter = i
+            break
+
+    # The main loop for updating the progress bar
+    for i in range(loopstart, total):
+        # since processing time is not 0, update i to reflect the actual time from time_start_ms
+        i = (time.time_ns() // 1_000_000 - time_stamp_offset) // update_interval_ms
+        if i > total:
+            break
+
+        # update the actual currentChapter based on the current time
+        for j in range(currentChapter, len(chapters)):
+            if chapters[j][0] > i * update_interval_ms:
+                currentChapter = j
+                break
+
+        desc = f"[{currentChapter + 1}/{len(chapters)}]  {chapters[currentChapter][1]}"
+        # format time as mm:ss playback / mm:ss total
+        # [00:05 / 1:00]
+        timef = time.strftime("%M:%S", time.gmtime(i * update_interval_ms / 1000))
+        timef = f"{timef} / {timef_total}"
+        
+        progress(i, vmax=total-1, title=desc, postfix=f"[{timef}]")
+
+        sleep(update_interval_ms / 1000)
+    
+    if end_msg != "":
+        print(end_msg)
+    print()
+
+
+
 
 
 

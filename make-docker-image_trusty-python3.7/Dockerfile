@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     wget \
     libssl-dev \
+    zlib1g \
     zlib1g-dev \
     libncurses5-dev \
     libncursesw5-dev \
@@ -25,7 +26,9 @@ RUN apt-get update && apt-get install -y \
     libasound2-dev \
     llvm \
     git \
-    mecab-ipadic-utf8
+    mecab-ipadic-utf8 \
+    libsndfile-dev \
+    gfortran
 
 # https://www.openssl.org/source/openssl-1.0.2u.tar.gz
 # Install OpenSSL 1.0.2u
@@ -59,4 +62,4 @@ RUN PATH="$HOME/openssl:$PATH"  CPPFLAGS="-I$HOME/openssl/include" CFLAGS="-I$HO
 RUN pyenv global $PYTHON_VERSION && pyenv rehash
 
 # Upgrade pip and install setuptools and wheel
-RUN pip3.7 install --upgrade pip setuptools wheel
+RUN python3.7 -m pip install --upgrade pip setuptools wheel

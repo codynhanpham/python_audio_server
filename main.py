@@ -87,7 +87,7 @@ if __name__ == '__main__':
         return jsonify(message=f"Started new log file: ./logs/{current_log_file}"), 200
 
     print("Preparing to serve app...\n")
-    time.sleep(2.5) # in case some HTTP requests were called before the server was restarted, the delay helps timing those out.
+    time.sleep(1.75) # in case some HTTP requests were called before the server was restarted, the delay helps timing those out.
 
     # ping route to check if server is up
     from routes.ping import ping_blueprint

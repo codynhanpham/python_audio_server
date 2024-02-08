@@ -151,10 +151,10 @@ def play_playlist(name):
                 print(f"\x1b[2m    Finished (job at {timestart})\x1b[0m")
 
                 # write to log file
-                # with open("logs/" + current_log_file, 'a', newline='') as csvfile:
-                #     logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-                #     logwriter.writerow([timestart, step["value"], "success", "N/A"])
-                # print(f"\x1b[2m    Appended to log file: ./logs/{current_log_file}\x1b[0m")
+                with open("logs/" + current_log_file, 'a', newline='') as csvfile:
+                    logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                    logwriter.writerow([timestart, step["value"], "success", "N/A"])
+                print(f"\x1b[2m    Appended to log file: ./logs/{current_log_file}\x1b[0m")
                 log_data += f"{timestart},{step['value']},success,N/A\n"
 
                 count += 1
@@ -165,18 +165,19 @@ def play_playlist(name):
                 time.sleep(step["value"]/1000)
 
                 # write to log file
-                # with open("logs/" + current_log_file, 'a', newline='') as csvfile:
-                #     logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-                #     logwriter.writerow([timestart, f"pause_{step['value']}ms", "success", "N/A"])
-                # print(f"\x1b[2m    Appended to log file: ./logs/{current_log_file}\x1b[0m")
+                with open("logs/" + current_log_file, 'a', newline='') as csvfile:
+                    logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                    logwriter.writerow([timestart, f"pause_{step['value']}ms", "success", "N/A"])
+                print(f"\x1b[2m    Appended to log file: ./logs/{current_log_file}\x1b[0m")
                 log_data += f"{timestart},pause_{step['value']}ms,success,N/A\n"
 
                 count += 1
 
-        # write to log file the playback data
-        with open("logs/" + current_log_file, 'a', newline='') as csvfile:
-            csvfile.write(log_data)
-        print(f"\x1b[2m    Appended to log file: ./logs/{current_log_file}\x1b[0m")
+        # write to log file the playback data, use this part if do not want to append to the log file after each step
+            # (In that case, also comment out the with open() above in the for loop)
+        # with open("logs/" + current_log_file, 'a', newline='') as csvfile:
+        #     csvfile.write(log_data)
+        # print(f"\x1b[2m    Appended to log file: ./logs/{current_log_file}\x1b[0m")
 
         playback_duration = (time.time_ns() - time_ns_playback)/1_000_000_000
         request_duration = (time.time_ns() - time_ns)/1_000_000_000
@@ -188,9 +189,11 @@ def play_playlist(name):
         # write to log file
         with open("logs/" + current_log_file, 'a', newline='') as csvfile:
             logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            # add whatever log data was written before the error
-            if log_data:
-                csvfile.write(log_data)
+            # add whatever log data was written before the error, only use this part if not appending to the log file after each step
+            # if log_data:
+            #     csvfile.write(log_data)
+
+            # then append the error
             logwriter.writerow([time.time_ns(), name, "playlist playback error", "N/A"])
         print(f"\x1b[2m    Appended (error) to log file: ./logs/{current_log_file}\x1b[0m")
 
@@ -230,6 +233,13 @@ def play_playlist_gapless(name):
         print(f"\x1b[2m\x1b[31m    Playlist '{name}' is empty\x1b[0m")
         return jsonify(message=f"Playlist '{name}' is empty."), 404
     
+    playlist_gapless = PLAYLIST[name]["gapless"]
+
+    if not playlist_gapless:
+        print(f"\x1b[2m\x1b[31m    Playlist '{name}' was not prepared for gapless playback\x1b[0m")
+        return jsonify(message=f"Playlist '{name}' was not prepared for gapless playback."), 404
+    
+    
     # make sure the logs/ directory exists, also create the log file
     if not os.path.exists("logs/"):
         os.makedirs("logs/")
@@ -245,65 +255,11 @@ def play_playlist_gapless(name):
         logwriter.writerow([time.time_ns(), f"Received /playlist/gapless/{name}", "success", client_time])
     print(f"\x1b[2m    Appended request info to log file: ./logs/{current_log_file}\x1b[0m")
 
-    highest_samplerate = max((AUDIO[step["value"]]["audio"].frame_rate for step in playlist if step["type"] == "audio"), default=48000)
 
-    # For gapless, create a single audio segment from all the audio files in the playlist first
-    # Since it is gapless, no need to add log for each audio file
-    # For pause, create a single audio segment of silence for the duration
-    # Then play the single audio segment
-    process = None
+    process = None # in case using Process to run the progress timer
     try:
-        print(f"\x1b[34m    Note: For this playlist gapless playback, all audio files will be resampled to {highest_samplerate} Hz\x1b[0m")
-
-        playlistSegment = AudioSegment.empty()
-        chapters = []
-        total_array_length = 0
-
-        # try to use numpy for concatenation (simply appending AudioSegments is too slow as the AudioSegments are immutable)
-        # also, have to make sure all audio files are of the same sample rate, sample width, and channels
-        # (forces resampling to highest_samplerate Hz, 2 channels, 16-bit sample width)
-        nparrays = []
-        for step in playlist:
-            if step["type"] == "audio":
-                audiofile = AUDIO[step["value"]]
-                source = audiofile["audio"]
-
-                if source.frame_rate != highest_samplerate:
-                    source = utils.resample_audio(source, highest_samplerate)
-
-                if source.channels != 2:
-                    source = source.set_channels(2)
-
-                if source.sample_width != 2:
-                    source = source.set_sample_width(2)
-
-                # convert source to numpy array
-                nparray = source.get_array_of_samples()
-                total_array_length += len(nparray)
-
-                # append the numpy array to the list of numpy arrays
-                if nparray is not None:
-                    nparrays.append(nparray)
-
-                # chapter with [end_time, name]
-                chapters.append([total_array_length / (highest_samplerate * 2) * 1000, step["value"]])
-
-            elif step["type"] == "pause":
-                silence =  utils.create_tone(0, step["value"], 0, highest_samplerate, 0, 2)
-                nparray = silence.get_array_of_samples()
-                total_array_length += len(nparray)
-
-                # append the numpy array to the list of numpy arrays
-                if nparray is not None:
-                    nparrays.append(nparray)
-
-                chapters.append([total_array_length / (highest_samplerate * 2) * 1000, f"pause_{step['value']}ms"])
-
-        # concatenate all numpy arrays in the list
-        fullnparray = np.concatenate(nparrays)
-
-        # convert the collective numpy array to AudioSegment
-        playlistSegment = AudioSegment(fullnparray.tobytes(), frame_rate=highest_samplerate, sample_width=2, channels=2)
+        playlistSegment = playlist_gapless["segment"]
+        chapters = playlist_gapless["chapters"]
 
         time_ns_playback = time.time_ns()
         print(f"\x1b[32m    {time_ns_playback}: Playing {name}...\x1b[0m")
