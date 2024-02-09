@@ -268,7 +268,7 @@ def play_playlist_gapless(name):
             sink.wait_done()
             time_ns_end = time.time_ns()
         # terminate the progress timer
-        if g.CLI_ARGS.progress_bar and process and process.is_alive():
+        if process and process.is_alive():
             process.terminate()
         print(f"\x1b[2m    Finished playing {name} (job at {time_ns_playback})\x1b[0m")
 
