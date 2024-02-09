@@ -37,7 +37,6 @@ if __name__ == '__main__':
                         prog=start_command,
                         description="API server to play audio locally from remote client's requests.")
     parser.add_argument('--no-convert-to-s16', action='store_true', help='Skip all audio files\' bit depth conversion to 16-bit signed integer format and simply uses the original audio files. Note that playback is less reliable for audio files with bit depth > 16 bits.')
-    parser.add_argument('-pb','--progress-bar', action='store_true', help='Show the progress bar when playing playlists gaplessly. The progress bar is only an estimate and likely be different from what is actually playing.')
 
     CLI_ARGS, _ = parser.parse_known_args()
 
@@ -56,6 +55,9 @@ if __name__ == '__main__':
 
     current_log_file = config.get("LOGFILE_PREFIX", "log_") + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
     print(f"New log file started: ./logs/{current_log_file}\n")
+    # pre-emtively create a blank ./logs/ folder if it doesn't exist
+    if not os.path.exists("logs"):
+        os.makedirs("logs")
 
 
     # Call this function before every request to share global variables
@@ -120,6 +122,10 @@ if __name__ == '__main__':
     # route to /power/_ to restart or shutdown the server
     from routes.power import power_blueprint
     app.register_blueprint(power_blueprint)
+
+    # route to /stop to stop all playing audio
+    from routes.stop import stop_blueprint
+    app.register_blueprint(stop_blueprint)
 
 
     PORT = config.get("PORT", 5055)

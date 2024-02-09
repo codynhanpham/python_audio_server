@@ -27,6 +27,10 @@ def root_documentation():
         - GET /startnewlog                  --> start a new log file
                 (eg. /startnewlog ==> Started new log file: ./logs/log_20210321-171234.csv)
 
+
+        - GET /stop                         --> stop all playing audio
+                (eg. /stop ==> Stopped all playing audio)
+
                 
         - GET /play/<audio_file_name>       --> play the audio file
                 (eg. /play/1.wav ==> 1.wav started playing on the server)
@@ -88,16 +92,55 @@ def root_documentation():
                 (eg. /playlist/gapless/playlist_file.txt ==> playlist_file.txt started playing on the server)
 
 
+        - GET /playlist/save/<playlist_name>  --> save the gapless version of the playlist as a wav file
+                (eg. /playlist/save/playlist_file.txt ==> generate file "playlist_file.wav" to download)
+
+
         - GET /generate_batch_files         --> generate a .zip containing batch files to request the audio files and playlists (close when audio file is finished playing)
                 (eg. /generate_batch_files ==> ZIP file to download)
 
 
         - GET /generate_batch_files_async   --> generate a .zip containing batch files to request the audio files and playlists (asynchronous, close immediately)
                 (eg. /generate_batch_files_async ==> ZIP file to download)
+
+
+        - GET /restart                      --> show the instructions to restart the server with HTTP request
+
+
+        - GET /shutdown                     --> show instructions to shutdown the server with HTTP request
+                * The server can also be shut down gracefully by pressing Ctrl+C in the terminal
+
+
+                
+    IMPORTANT: Audio Pre-Processing
+        - In some scenarios (continue reading below), it is necessary to pre-process the audio files. The pre-processing step is done immediately when the app is booting up, right before the server is actually started (and reachable via the IP address and port number).
         
+        - The audio files are pre-processed if they meet any of the following conditions:
+        
+            + The audio file's bit depth is higher than 16 bits. The audio server (currently) only supports 16-bit signed integer format. In this case, the audio file is simply converted to 16-bit signed integer format.
+
+            + The audio file's sample rate is non-standard. The server can only play audio at the following sampling rates: 8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000 (Hz). In this case, the audio file is resampled to the nearest higher standard sampling rate. For example, an audio file with a sample rate of 44101 Hz will be resampled to 48000 Hz. The resampling is done using the 'resampy' library, which implements the sampling rate conversion described by: Smith, Julius O. Digital Audio Resampling Home Page Center for Computer Research in Music and Acoustics (CCRMA), Stanford University, 2015-02-23. Web published at http://ccrma.stanford.edu/~jos/resample/.
+
+            + Only for gapless playback, all audio files in the same playlist must have the same sample rate. If the sample rates are different, the audio files are resampled to the highest sample rate in the playlist. For example, if a playlist contains audio files with sample rates of 44100 Hz and 48000 Hz, all audio files will be resampled to 48000 Hz. The resampling method is the same as described above.
+
+            + Only for gapless playback, continue from the previous point, the same audio file might be played at different sample rates if it is in different playlists. In other words, the sample rate of different playlists can be different, all depends on the highest sample rate audio file in the playlist.
+
+        - The pre-processed data is only stored in memory and is not saved to disk. The pre-processed data is used for playback and is discarded when the server is stopped. The original audio files are never modified.
+
+        - Playlists are also prepared for gapless playback during the pre-processing step. The audio files in the playlist are resampled to the highest sample rate in the playlist as described above, then the resampled audio are then concatenated into a single audio file in-memory. The concatenated audio file is used for gapless playback. The concatenated audio file is only stored in memory and is not saved to disk. The original audio files are never modified.
+
+        - It is strongly advised that the user process the audio files manually themselves if repeatability and performance are important.
 
 
-    Note:
+
+
+    General Note:
+        - All audio and playlist data are stored in memory on start up to ensure fast access. Please be mindful of the available memory (RAM) on the server.
+
+        - Playlists can be any .txt file with a valid list of audio file names. Pauses can also be added using the `pause_{duration}ms`, for example, "pause_1000ms" for a 1-second pause. The playlist files must be in the ./playlists folder.
+
+        - Audio file names should be limited to only the English alphabet, numbers, and typical special characters. Spaces are fine, as well.
+
         - For any request that would result in a log file (eg. /play, /tone, /sweep, /play/random, /playlist, etc.), an optional query string ?time=<client_time> can be added to the request to specify the client time. This is useful for estimating the client-server request delay if the client and server are synced to the same clock. Example: /play/1.wav?time=1616331234567
 
         - The batch files generated by /generate_batch_files and /generate_batch_files_async are for Windows only.
@@ -106,36 +149,50 @@ def root_documentation():
 
         - /playlist playback is not truely gapless. There is a small gap between files.
 
+        - Use /playlist/gapless for gapless playback. This will create a new log file for that session playback. The log file will contain \"playlistG\" in the file name (instead of just \"playlist\").
+
         - /play/random and /playlist will always create a new log file for that session playback. The log file will contain \"playrandom\" or \"playlist\" in the file name.
 
         - /playlist/create will also hot reload the playlists folder, so you can create a new playlist and play it right away.
 
         
 
+
     Start-up arguments:
         When starting the server, you can specify the following arguments:
             -h, --help: Show help message with all up-to-date available arguments. If -h is different from this documentation, then the the -h argument will take precedence.
-            -pb, --progress-bar: Show progress bar when playing playlists gaplessly. The progress bar is not accurate, but it is a good estimate of the progress.
-            --no-convert-to-s16: Skip all audio files' bit depth conversion to 16-bit signed integer format and simply uses the original audio files. Note that playback is less reliable for audio files with bit depth > 16 bits.
+            --no-convert-to-s16: Skip all audio files' bit depth conversion to 16-bit signed integer format and simply uses the original audio files. Note that playback is (significantly) less reliable for audio files with bit depth > 16 bits.
 
 
         Example:
-            python main.py -pb --no-convert-to-s16
+            python main.py --no-convert-to-s16
 
-            py_audio_server.exe -pb --no-convert-to-s16
+            py_audio_server.exe --no-convert-to-s16
 
-            ./py_audio_server -pb --no-convert-to-s16
+            ./py_audio_server --no-convert-to-s16
 
 
-    
+
+
     Config File:
         You can change the port number and the log file's prefix by creating a .env file in the same directory as main.py or the executable.
 
         The .env file should look like this:
             PORT=5055
-            LOGFILE_PREFIX
+            LOGFILE_PREFIX="log_"
 
         If the .env file is not found, the default port number is 5050 and the default log file prefix is "log_".
+
+
+
+
+    If Using the Executable:
+        - The executable is built using PyInstaller and is a standalone file. When the executable is run, it will extract the necessary files to a temporary directory and run the server from there. The temporary directory is deleted when the server is stopped. For more information, see https://pyinstaller.org/en/stable/operating-mode.html#how-the-one-file-program-works.
+
+        - To cleanly shut down the server, press Ctrl+C in the terminal, or use the /shutdown endpoint. Simply closing the terminal window will not shut down the server properly. If the server is not shut down properly, the temporary directory will not be deleted and take up space on the hard drive. In the worst case, you can always delete the temporary directory manually.
+
+        - The temporary directory location is platform-dependent. On Windows, it is usually in the %TEMP% directory. On Linux, it is usually in /tmp.
+
 
     """
     return Response(text, mimetype='text/plain'), 200

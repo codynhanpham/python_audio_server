@@ -8,6 +8,7 @@ import contextlib
 import sys
 import resampy
 from scipy.signal import chirp
+import simpleaudio
 from time import sleep
 import math, shutil
 
@@ -557,7 +558,9 @@ def progress(value, length=40, title="", vmin=0.0, vmax=1.0, postfix="", auto_re
 
 # function progress_timer(time_ms) that uses tqdm to make a timer progress bar
 # Usage: playlist_progress_timer(6000, [[0, "First Half"], [2500, "Second Half"]], "Finished!")
-def playlist_progress_timer(total_time_ms, chapters, end_msg="", update_interval_ms=1000, time_stamp_offset=0):
+def playlist_progress_timer(sink: simpleaudio.PlayObject, total_time_ms, chapters, end_msg="", update_interval_ms=1000, time_stamp_offset=0):
+    # sink is the simpleaudio PlayObject
+
     # chapters is a list of [time_ms (end of chap), description] pairs
     # for example, [[1000, "Chapter 1"], [total_time_ms, "Chapter 2"]]
 
@@ -579,9 +582,10 @@ def playlist_progress_timer(total_time_ms, chapters, end_msg="", update_interval
 
     # loop start from the (current time - time_stamp_offset)
     loopstart = (time.time_ns() // 1_000_000 - time_stamp_offset) // update_interval_ms
-    # there is a chance that loopstart is negative (process took a long time to spawn) --> return
+
+    # there is a chance that loopstart is negative (process took a long time to spawn) --> return with the highest chapter
     if loopstart < 0:
-        return
+        return len(chapters)
 
     currentChapter = 0
     # update the actual currentChapter
@@ -591,7 +595,7 @@ def playlist_progress_timer(total_time_ms, chapters, end_msg="", update_interval
             break
 
     # The main loop for updating the progress bar
-    for i in range(loopstart, total):
+    for i in range(loopstart, total):        
         # since processing time is not 0, update i to reflect the actual time from time_start_ms
         i = (time.time_ns() // 1_000_000 - time_stamp_offset) // update_interval_ms
         if i > total:
@@ -603,6 +607,10 @@ def playlist_progress_timer(total_time_ms, chapters, end_msg="", update_interval
                 currentChapter = j
                 break
 
+        # if the audio has been stopped, break the loop and return
+        if sink is None or not sink.is_playing():
+            return currentChapter
+        
         desc = f"[{currentChapter + 1}/{len(chapters)}]  {chapters[currentChapter][1]}"
         # format time as mm:ss playback / mm:ss total
         # [00:05 / 1:00]
@@ -611,13 +619,17 @@ def playlist_progress_timer(total_time_ms, chapters, end_msg="", update_interval
         
         progress(i, vmax=total-1, title=desc, postfix=f"[{timef}]")
 
+        # recall this, as things might have changed
+        if sink is None or not sink.is_playing():
+            return currentChapter
+
         sleep(update_interval_ms / 1000)
     
     if end_msg != "":
         print(end_msg)
     print()
 
-
+    return currentChapter
 
 
 

@@ -9,7 +9,7 @@ import wave
 
 import csv
 
-from pydub.playback import play
+from pydub.playback import play, _play_with_simpleaudio
 import numpy as np
 
 
@@ -60,10 +60,12 @@ def play_tone(frequency, duration, volume, sample_rate):
         edge_tag = f"_-{abs(edge)}ms"
 
     try:
-        timestart = time.time_ns()
-        print(f"\x1b[2m    {timestart}: Playing {frequency}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz (edge: {edge}ms)...\x1b[0m")
         with utils.ignore_stderr():
-            play(tone)
+            # play(tone)
+            sink = _play_with_simpleaudio(tone)
+            timestart = time.time_ns()
+            print(f"\x1b[2m    {timestart}: Playing {frequency}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz (edge: {edge}ms)...\x1b[0m")
+            sink.wait_done()
         print(f"\x1b[2m    Finished (job at {timestart})\x1b[0m")
 
         # write to log file

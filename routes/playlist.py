@@ -140,15 +140,18 @@ def play_playlist(name):
         count = 0
         # Playlist format is a Vec of {type: "audio" or "pause", value: "filename" or "pause_duration in ms"}
         # Iterate through the playlist and play each file: Either play the audio file, or Sleep for the duration
+        sink = None
         for step in playlist:
             if step["type"] == "audio":
                 audiofile = AUDIO[step["value"]]
                 source = audiofile["audio"]
 
-                timestart = time.time_ns()
-                print(f"\x1b[32m    [{count+1}/{len(playlist)}] {timestart}: Playing {step['value']}...\x1b[0m")
                 with utils.ignore_stderr():
-                    play(source)
+                    # play(source)
+                    sink = _play_with_simpleaudio(source)
+                    timestart = time.time_ns()
+                    print(f"\x1b[32m    [{count+1}/{len(playlist)}] {timestart}: Playing {step['value']}...\x1b[0m")
+                    sink.wait_done()
                 print(f"\x1b[2m    Finished (job at {timestart})\x1b[0m")
 
                 # write to log file
@@ -261,7 +264,7 @@ def play_playlist_gapless(name):
             sink = _play_with_simpleaudio(playlistSegment) # this is non-blocking (using simpleaudio)
             time_ns_playback = time.time_ns() # immediately after the audio output starts
             print(f"\x1b[32m    {time_ns_playback}: Playing {name}...\x1b[0m")
-            utils.playlist_progress_timer(len(playlistSegment), chapters, "", 50, time_ns_playback//1_000_000)
+            playback_status = utils.playlist_progress_timer(sink, len(playlistSegment), chapters, "", 50, time_ns_playback//1_000_000)
             sink.wait_done()
             time_ns_end = time.time_ns()
         # terminate the progress timer
@@ -269,12 +272,21 @@ def play_playlist_gapless(name):
             process.terminate()
         print(f"\x1b[2m    Finished playing {name} (job at {time_ns_playback})\x1b[0m")
 
+        # also write the status: if playback_status is < len(chapters), then it was stopped early, otherwise, the entire playlist was played
+        status = ""
+        if playback_status < len(chapters):
+            print(f"\x1b[2m    (Playback was stopped early)\x1b[0m")
+            status = "stopped early"
+        else:
+            print(f"\x1b[2m    (Playback was fully completed)\x1b[0m")
+            status = "fully completed"
+
 
         # write to log file the playback duration
         with open("logs/" + current_log_file, 'a', newline='') as csvfile:
             logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
             logwriter.writerow([time_ns_playback, f"Started {name}", "success", "N/A"])
-            logwriter.writerow([time_ns_end, f"Finished {name} | playback took {round(((time_ns_end - time_ns_playback)/1000000), 2)} ms", "success", "N/A"])
+            logwriter.writerow([time_ns_end, f"Finished {name} | playback took {round(((time_ns_end - time_ns_playback)/1000000), 2)} ms ({status})", "success", "N/A"])
 
         playback_duration = (time_ns_end - time_ns_playback)/1_000_000_000
         request_duration = (time_ns_end - time_ns)/1_000_000_000

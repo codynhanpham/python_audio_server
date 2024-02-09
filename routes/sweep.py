@@ -9,7 +9,7 @@ import wave
 
 import csv
 
-from pydub.playback import play
+from pydub.playback import play, _play_with_simpleaudio
 import numpy as np
 from scipy.signal import chirp
 
@@ -99,10 +99,12 @@ def play_sweep(sweep_type, start_freq, end_freq, duration, volume, sample_rate):
         edge_tag = f"_-{abs(edge)}ms"
 
     try:
-        timestart = time.time_ns()
-        print(f"\x1b[2m    {timestart}: Playing {sweep_type}_{start_freq}Hz_{end_freq}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz (edge: {edge}ms)...\x1b[0m")
         with utils.ignore_stderr():
-            play(sweep)
+            # play(sweep)
+            sink = _play_with_simpleaudio(sweep)
+            timestart = time.time_ns()
+            print(f"\x1b[2m    {timestart}: Playing {sweep_type}_{start_freq}Hz_{end_freq}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz (edge: {edge}ms)...\x1b[0m")
+            sink.wait_done()
         print(f"\x1b[2m    Finished (job at {timestart})\x1b[0m")
 
         # write to log file

@@ -7,7 +7,7 @@ if not hasattr(time, 'time_ns'):
 import csv
 import random
 
-from pydub.playback import play
+from pydub.playback import play, _play_with_simpleaudio
 
 import utils as utils
 
@@ -46,10 +46,12 @@ def play_audio(name):
     try:
         print(f"\x1b[2m    Source's Sample Rate: {source.frame_rate} Hz")
 
-        timestart = time.time_ns()
-        print(f"\x1b[2m    {timestart}: Playing {name}...\x1b[0m")
         with utils.ignore_stderr():
-            play(source)
+            # play(source)
+            sink = _play_with_simpleaudio(source)
+            timestart = time.time_ns()
+            print(f"\x1b[2m    {timestart}: Playing {name}...\x1b[0m")
+            sink.wait_done()
         print(f"\x1b[2m    Finished (job at {timestart})\x1b[0m")
 
         # write to log file
@@ -121,15 +123,18 @@ def play_random():
     try:
         time_ns_playback = time.time_ns()
         count = 0
+        sink = None
         while count < file_count:
             # choose a random audio file
             name = random.choice(list(AUDIO.keys()))
             source = AUDIO[name]["audio"]
 
-            timestart = time.time_ns()
-            print(f"\x1b[32m    [{count + 1}/{file_count}] {timestart}: Playing {name}...\x1b[0m")
             with utils.ignore_stderr():
-                play(source)
+                # play(source)
+                sink = _play_with_simpleaudio(source)
+                timestart = time.time_ns()
+                print(f"\x1b[32m    [{count + 1}/{file_count}] {timestart}: Playing {name}...\x1b[0m")
+                sink.wait_done()
             print(f"\x1b[2m    Finished (job at {timestart})\x1b[0m")
 
             # write to log file
