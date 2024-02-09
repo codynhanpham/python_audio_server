@@ -187,5 +187,5 @@ def save_tone(frequency, duration, volume, sample_rate):
         io.BytesIO(wav_data),
         mimetype='audio/wav',
         as_attachment=True,
-        attachment_filename=f"{frequency}Hz_{original_duration}ms_{volume}dB_@{sample_rate}Hz{edge_tag}.wav"
+        download_name=f"{frequency}Hz_{original_duration}ms_{volume}dB_@{sample_rate}Hz{edge_tag}.wav"
     )

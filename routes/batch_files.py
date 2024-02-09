@@ -101,7 +101,7 @@ def generate_batch_files():
         zip_file["data"],
         mimetype='application/zip',
         as_attachment=True,
-        attachment_filename=zip_file["zip_file_name"]
+        download_name=zip_file["zip_file_name"]
     )
 
 
@@ -130,5 +130,5 @@ def generate_batch_files_async():
         zip_file["data"],
         mimetype='application/zip',
         as_attachment=True,
-        attachment_filename=zip_file["zip_file_name"]
+        download_name=zip_file["zip_file_name"]
     )

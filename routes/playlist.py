@@ -1,3 +1,4 @@
+import io
 from flask import Blueprint, jsonify, request, g, send_file
 
 import time, os
@@ -209,14 +210,8 @@ def play_playlist_gapless(name):
         print(f"\x1b[2m\x1b[31m    No playlist file name provided\x1b[0m")
         return jsonify(message="No playlist file name provided"), 400
     
-    AUDIO = g.AUDIO
     PLAYLIST = g.PLAYLIST
     logfile_prefix = g.LOGFILE_PREFIX
-
-    # if AUDIO is an empty dict, return 404 error
-    if not AUDIO:
-        print(f"\x1b[2m\x1b[31m    No audio files found\x1b[0m")
-        return jsonify(message="No audio file (.wav or .mp3) in the ./audio/ folder."), 404
 
     if name not in PLAYLIST:
         print(f"\x1b[2m\x1b[31m    Playlist file '{name}' not found\x1b[0m")
@@ -261,11 +256,11 @@ def play_playlist_gapless(name):
         playlistSegment = playlist_gapless["segment"]
         chapters = playlist_gapless["chapters"]
 
-        time_ns_playback = time.time_ns()
-        print(f"\x1b[32m    {time_ns_playback}: Playing {name}...\x1b[0m")
         with utils.ignore_stderr():
             # play(playlistSegment) # opt for simpleaudio instead of pydub's play instead, so the playback is non-blocking
-            sink = _play_with_simpleaudio(playlistSegment)
+            sink = _play_with_simpleaudio(playlistSegment) # this is non-blocking (using simpleaudio)
+            time_ns_playback = time.time_ns() # immediately after the audio output starts
+            print(f"\x1b[32m    {time_ns_playback}: Playing {name}...\x1b[0m")
             utils.playlist_progress_timer(len(playlistSegment), chapters, "", 50, time_ns_playback//1_000_000)
             sink.wait_done()
             time_ns_end = time.time_ns()
@@ -299,3 +294,51 @@ def play_playlist_gapless(name):
         print(f"\x1b[2m    Appended (error) to log file: ./logs/{current_log_file}\x1b[0m")
 
         return jsonify(error=str(e), message="The server can only play audio at the following sampling rates: 8000, 11025, 16000, 22050, 32000, 44100, 48000, 88200, 96000, 192000 (Hz). If the error is about weird sample rates, please double check your audio file."), 500
+    
+
+
+@playlist_blueprint.route('/playlist/save/<name>', methods=['GET'])
+def play_save_gapless(name):
+    time_ns = time.time_ns()
+    print(f"{time_ns}: Received /playlist/save/{name}")
+
+    if not name:
+        print(f"\x1b[2m\x1b[31m    No playlist file name provided\x1b[0m")
+        return jsonify(message="No playlist file name provided"), 400
+    
+    PLAYLIST = g.PLAYLIST
+
+    if name not in PLAYLIST:
+        print(f"\x1b[2m\x1b[31m    Playlist file '{name}' not found\x1b[0m")
+        return jsonify(message=f"Playlist file '{name}' not found. Navigate to /list to see the available audio files and playlists."), 404
+
+    playlist = PLAYLIST[name]["data"]
+
+    # if the playlist is empty, return 404 error
+    if not playlist:
+        print(f"\x1b[2m\x1b[31m    Playlist '{name}' is empty\x1b[0m")
+        return jsonify(message=f"Playlist '{name}' is empty."), 404
+    
+    playlist_gapless = PLAYLIST[name]["gapless"]
+
+    if not playlist_gapless:
+        print(f"\x1b[2m\x1b[31m    Playlist '{name}' was not prepared for gapless\x1b[0m")
+        return jsonify(message=f"Playlist '{name}' was not prepared for gapless."), 404
+    
+    # get the gapless playlist segment
+    playlistSegment: AudioSegment = playlist_gapless["segment"]
+    # trim .txt for the filename
+    filename = name.replace(".txt", "") + ".wav"
+    wav_data = io.BytesIO()
+    wav_data = playlistSegment.export(wav_data, format="wav")
+    wav_data.seek(0)
+    wav_data = wav_data.read()
+
+
+    # return a wav file of the gapless playlist
+    return send_file(
+        io.BytesIO(wav_data),
+        mimetype='audio/wav',
+        as_attachment=True,
+        download_name=filename
+    )

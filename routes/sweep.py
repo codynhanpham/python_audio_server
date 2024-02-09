@@ -228,5 +228,5 @@ def save_sweep(sweep_type, start_freq, end_freq, duration, volume, sample_rate):
         io.BytesIO(wav_data),
         mimetype='audio/wav',
         as_attachment=True,
-        attachment_filename=f"{sweep_type}_{start_freq}Hz_{end_freq}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz{edge_tag}.wav"
+        download_name=f"{sweep_type}_{start_freq}Hz_{end_freq}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz{edge_tag}.wav"
     )

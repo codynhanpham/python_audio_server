@@ -6,7 +6,7 @@ import numpy as np
 import socket
 import contextlib
 import sys
-import librosa
+import resampy
 from scipy.signal import chirp
 from time import sleep
 import math, shutil
@@ -60,7 +60,8 @@ def get_local_ip():
     return IP
 
 
-def audiosegment_to_librosawav(audiosegment):    
+def audiosegment_to_librosawav(audiosegment):
+    """Used by librosa and resampy"""
     channel_sounds = audiosegment.split_to_mono()
     samples = [s.get_array_of_samples() for s in channel_sounds]
 
@@ -72,9 +73,9 @@ def audiosegment_to_librosawav(audiosegment):
 
 
 def resample_audio(audio_segment: AudioSegment, new_sample_rate: int):
-    """Need to `import librosa` to use this. Resample the audio segment to the new sample rate using `librosa`."""
+    """Need to `import resampy` to use this. Resample the audio segment to the new sample rate using `resampy` https://resampy.readthedocs.io/en/stable/."""
     
-    resample_type = "soxr_vhq"
+    resample_type = "sinc_window"
 
     # use librosa to resample the audio segment to the new sample rate
     y = audiosegment_to_librosawav(audio_segment)
@@ -85,23 +86,21 @@ def resample_audio(audio_segment: AudioSegment, new_sample_rate: int):
         y_left = y[0::2]
         y_right = y[1::2]
 
-
         # Resample both channels separately
-        y_left = librosa.resample(y_left, orig_sr=audio_segment.frame_rate, target_sr=new_sample_rate, res_type=resample_type)
-        y_right = librosa.resample(y_right, orig_sr=audio_segment.frame_rate, target_sr=new_sample_rate, res_type=resample_type)
+        y_left = resampy.resample(y_left, audio_segment.frame_rate, new_sample_rate, filter=resample_type)
+        y_right = resampy.resample(y_right, audio_segment.frame_rate, new_sample_rate, filter=resample_type)
 
         # Combine the two channels back into stereo
         y = np.vstack((y_left, y_right)).flatten('F')
     else:
         # If the audio is mono, just resample it
-        y = librosa.resample(y, orig_sr=audio_segment.frame_rate, target_sr=new_sample_rate, res_type=resample_type)
+        y = resampy.resample(y, audio_segment.frame_rate, new_sample_rate, filter=resample_type)
 
     # convert the resampled audio back to AudioSegment
     y = (y * np.iinfo(np.int16).max).astype(np.int16)
     audio_segment = AudioSegment(y.tobytes(), frame_rate=new_sample_rate, sample_width=2, channels=audio_segment.channels)
 
     return audio_segment
-
 
 
 

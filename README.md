@@ -9,6 +9,7 @@ Play audio on host computer when a remote client makes an HTTP request. The audi
 - [x] More efficient way to pre-process audio files for playlist (resample, etc.)
 - [x] Preload gapless version of playlist
 - [ ] Move to using simpleaudio for all audio playback. Make it so that only one audio stream is playing at a time.
+- [ ] Add ability to reload audio files and playlists without restarting the server
 - [ ] Smoothing the audio transition between songs in playlist (Eliminate the clicking sound)
 - [ ] Ability to stop audio. Maybe a /stop endpoint
 - [ ] Sync the playback progress bar with the audio
