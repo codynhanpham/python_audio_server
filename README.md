@@ -8,11 +8,12 @@ Play audio on host computer when a remote client makes an HTTP request. The audi
 - [x] Resample audio files when start up server (to the nearest playable sample rate)
 - [x] More efficient way to pre-process audio files for playlist (resample, etc.)
 - [x] Preload gapless version of playlist
-- [ ] Move to using simpleaudio for all audio playback. Make it so that only one audio stream is playing at a time.
+- [x] Ability to stop audio. Maybe a /stop endpoint
+- [x] Sync the playback progress bar with the audio
+- [x] Move to using simpleaudio for all audio playback.
 - [ ] Add ability to reload audio files and playlists without restarting the server
 - [ ] Smoothing the audio transition between songs in playlist (Eliminate the clicking sound)
-- [ ] Ability to stop audio. Maybe a /stop endpoint
-- [ ] Sync the playback progress bar with the audio
+- [ ] (Unsure for now) Make it so that only one audio stream is playing at a time.
 
 
 ## Installation
@@ -63,7 +64,18 @@ There are a few endpoints that can be used to control the server.
 
 For the most up-to-date list and documentation, visit the `/` (home) endpoint. For example, `http://127.0.0.1:5055/`.
 
-This repo is the Python implementation of the ***exact same*** project I wrote in Rust. The `README.md` in the Rust repo has more detailed documentation on the endpoints. Check it out at https://github.com/codynhanpham/rust_audio_server
+~~This repo is the Python implementation of the ***exact same*** project I wrote in Rust. The `README.md` in the Rust repo has more detailed documentation on the endpoints. Check it out at https://github.com/codynhanpham/rust_audio_server~~
+
+This Python version now has a lot more features than the Rust version. The Rust version is no longer maintained, at least for now. The documentation there still serves as a good basis for understanding the endpoints.
+
+#### Common Endpoints
+- `/` (home): Get the list of endpoints and the general documentation. Use this to get the most up-to-date list of endpoints and their documentation.
+- `/play/{filename}`: Play an audio file. The audio file must be in the `./audio` folder.
+- `/playlist/{playlist_name}`: Play a playlist. The playlist must be in the `./playlists` folder.
+- `/playlist/gapless/{playlist_name}`: Play a playlist gaplessly. Better than the regular `/playlist` endpoint in most case.
+- `/stop`: Stop the audio. All audio streams will be stopped.
+- `/info/{filename}`: Get the information of an audio or playlist file.
+
 
 ## Networking
 The server can be accessed from remote clients on the same network (same wifi/ethernet) as the host machine. The host machine's IP address can be found using the `ipconfig` command on Windows or the `ifconfig` command on Linux (look for the `IPv4 Address`). In any case, the default local IP is automatically detected and shown when the server is launched. The server port can be changed in the `.env` file.
