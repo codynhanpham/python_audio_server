@@ -130,5 +130,5 @@ if __name__ == '__main__':
 
     PORT = config.get("PORT", 5055)
     print(f"Serving app at http://{IP_ADDRESS}:{PORT}/\n")
-    print("(Hit Ctrl+C to quit at anytime)\n\n")
+    print("(Hit Ctrl+C to stop the server gracefully)\n\n")
     serve(app, host='0.0.0.0', port=PORT)

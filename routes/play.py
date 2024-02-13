@@ -62,6 +62,7 @@ def play_audio(name):
         print(f"\x1b[2m    Appended to log file: ./logs/{current_log_file}\x1b[0m")
         return jsonify(message=f"At {timestart}: Played {name}"), 200
     except Exception as e:
+        timestart = time.time_ns()
         print(f"\x1b[2m\x1b[31m    Error occurred: {e}\x1b[0m")
         # write to log file
         with open("logs/" + current_log_file, 'a', newline='') as csvfile:
@@ -164,6 +165,7 @@ def play_random():
         return jsonify(message=f"At {time_ns} started playing {file_count} random audio files. Playback took {playback_duration} seconds. Total time since request: {request_duration} seconds."), 200
     
     except Exception as e:
+        timestart = time.time_ns()
         print(f"\x1b[2m\x1b[31m    Error occurred: {e}\x1b[0m")
         # write to log file
         with open("logs/" + current_log_file, 'a', newline='') as csvfile:

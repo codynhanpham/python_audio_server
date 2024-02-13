@@ -76,6 +76,7 @@ def play_tone(frequency, duration, volume, sample_rate):
 
         return jsonify(message=f"At {timestart} played {frequency}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz{edge_tag}"), 200
     except Exception as e:
+        timestart = time.time_ns()
         print(f"\x1b[2m\x1b[31m    Error occurred: {e}\x1b[0m")
         # write to log file
         with open("logs/" + current_log_file, 'a', newline='') as csvfile:
