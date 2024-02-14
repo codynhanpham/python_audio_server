@@ -89,3 +89,77 @@ This Python code is made sure to work on Ubuntu 14.04 Trusty. The easiest way to
 Navigate to the folder [make-docker-image_trusty-python3.7](/make-docker-image_trusty-python3.7) to see the Dockerfile and the script to build the Docker image. The Docker image is built on Ubuntu 14.04 Trusty and has Python 3.7 installed. The Docker image is used for the PyInstaller to build the pre-built binaries.
 
 Note, the old version of this project used Python 3.6. If you would prefer this for historical reasons, you can still browse files at the last commit before the upgrade to Python 3.7 [here](https://github.com/codynhanpham/python_audio_server/tree/8b46e1b234f78217132723a60f0af6b27d1348f8/make-docker-image_trusty-python3.6).
+
+
+</br>
+
+## Development
+For developing the server and ensuring compatibility with Ubuntu 14.04 Trusty, Docker is used. A convienent Dockerfile is provided in the [make-docker-image_trusty-python3.7](/make-docker-image_trusty-python3.7) folder to build the image from scratch. Furthermore, for reproducibility, the pre-built Docker image is also available on the releases page with the [Docker-Images](https://github.com/codynhanpham/python_audio_server/releases/tag/Docker-Images) tag. This tag will be updated whenever the Docker image used for the pre-built binaries is updated.
+
+
+### General Use and Testing
+If you already have Docker set up, you can either import the Docker image from the releases page or build the Docker image from the Dockerfile. The Docker image is built on Ubuntu 14.04 Trusty and has Python 3.7 installed. The Docker image is used for the PyInstaller to build the pre-built binaries.
+
+After you have the Docker image loaded, there is also a `.bat` script for Windows to quickly run the image in a container that will mounts the project folder. Simply clone this repo, `cd` into it, and run the [`docker-terminal.bat`](/docker-terminal.bat) file. This will open a terminal in the container with the project folder mounted in `/app`. You can then use the terminal as you would a normal Ubuntu 14.04 Trusty machine. The terminal will have Python 3.7 installed, and you can use the virtual environment to run the server.
+
+Workflow on Windows to run the project in Docker:
+```batch
+git clone https://github.com/codynhanpham/python_audio_server.git
+cd python_audio_server
+
+:: Options: Load the Docker image or build it from the Dockerfile
+
+:: 1. If Build from Dockerfile:
+cd make-docker-image_trusty-python3.7
+docker build -t trusty-python3.7 .
+
+:: 2. If Load from Releases:
+:: (First, download the Docker image from the releases page)
+:: wget ... (or use the browser to download the tar.gz file)
+docker load -i trusty-python3.7.tar.gz
+
+
+:: After you have the Docker image ready, the docker-terminal.bat script can be used anytime after this
+:: Run the Docker container with the project folder mounted
+:: (still inside of the python_audio_server project folder)
+./docker-terminal.bat
+
+
+:: Now, you are in Ubuntu 14.04 Trusty with Python 3.7 installed. That's it!
+
+:: Inside the container, remember to start the virtual environment first!!!
+python3.7 -m venv venv
+source venv/bin/activate
+
+:: Do whatever test or development you need to do
+
+
+:: Ctrl + D to exit the container, this container will be automatically removed
+```
+
+### Bundling
+To ensure backward compatibility with Ubuntu 14.04, the pre-built binaries are built using PyInstaller in the Docker container on Ubuntu 14.04 Trusty.
+
+After getting the Docker image set up, a convienent [`build-ubuntu.bat`](/build-ubuntu.bat) script is provided to bundle the app with Docker. **Note that using the script, most packages will be installed with their latest version. For a more predictable build, run a manual package installation first before building with the script.** (The script was designed to be used after the manual package installation. The pip install commands in the script were used to make sure all essential packages were installed, that's about it.)
+
+Workflow on Windows to bundle the project with Docker:
+```batch
+:: Clone the project and set up Docker as mentioned above
+
+
+:: First time setup: Install the packages manually
+./docker-terminal.bat
+python3.7 -m venv linux-venv
+source linux-venv/bin/activate
+pip install -r requirements-linux.txt
+
+:: Ctrl + D to exit the container, this container will be automatically removed
+:: The linux-venv folder will be created in the project folder
+
+
+:: Now (and anytime after this point), you can use the build-ubuntu.bat script to bundle the app
+./build-ubuntu.bat
+
+
+:: After this, for rebuilding the app, you can just run the script ./build-ubuntu.bat script again
+```
