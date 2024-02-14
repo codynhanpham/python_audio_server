@@ -8,8 +8,8 @@ os.environ["PATH"] += os.pathsep + resource_path()
 sys.path.append(resource_path("bin"))
 os.environ["PATH"] += os.pathsep + resource_path("bin")
 _startup_cwd = os.getcwd()
-
 BASE_PATH = resource_path()
+
 import multiprocessing
 import utils as utils
 

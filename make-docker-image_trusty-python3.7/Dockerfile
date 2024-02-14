@@ -63,3 +63,5 @@ RUN pyenv global $PYTHON_VERSION && pyenv rehash
 
 # Upgrade pip and install setuptools and wheel
 RUN python3.7 -m pip install --upgrade pip setuptools wheel
+
+RUN apt-get install libav-tools -y
