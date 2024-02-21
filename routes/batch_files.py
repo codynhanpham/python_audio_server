@@ -81,7 +81,7 @@ batch_file_blueprint = Blueprint('batch_file', __name__)
 @batch_file_blueprint.route('/generate_batch_files', methods=['GET'])
 def generate_batch_files():
     time_ns = time.time_ns()
-    print(f"{time_ns}: Received /generate_batch_files")
+    print(f"\n{time_ns}: Received /generate_batch_files")
 
     AUDIO = g.AUDIO
     PLAYLIST = g.PLAYLIST
@@ -110,7 +110,7 @@ def generate_batch_files_async():
     # Similar to generate_batch_files, but with async_get.exe instead of curl
     # only different is also bundle async_get.exe with the zip file
     time_ns = time.time_ns()
-    print(f"{time_ns}: Received /generate_batch_files_async")
+    print(f"\n{time_ns}: Received /generate_batch_files_async")
 
     AUDIO = g.AUDIO
     PLAYLIST = g.PLAYLIST

@@ -17,7 +17,9 @@ if not hasattr(time, 'time_ns'):
     time.time_ns = lambda: int(time.time() * 1e9)
 
 PLAYLIST = {}
+AUDIO = {}
 SHUTDOWN_TOKENS = []
+PLAYLIST_ABORT = False
 
 _DEFAULT_POOL = ThreadPoolExecutor()
 
@@ -594,6 +596,13 @@ def playlist_progress_timer(sink: simpleaudio.PlayObject, total_time_ms, chapter
             currentChapter = i
             break
 
+    def time_to_chap(currentChapter):
+        i = (time.time_ns() // 1_000_000 - time_stamp_offset) // update_interval_ms
+        for j in range(currentChapter, len(chapters)):
+            if chapters[j][0] > i * update_interval_ms:
+                return j
+        return currentChapter
+
     # The main loop for updating the progress bar
     for i in range(loopstart, total):        
         # since processing time is not 0, update i to reflect the actual time from time_start_ms
@@ -602,14 +611,11 @@ def playlist_progress_timer(sink: simpleaudio.PlayObject, total_time_ms, chapter
             break
 
         # update the actual currentChapter based on the current time
-        for j in range(currentChapter, len(chapters)):
-            if chapters[j][0] > i * update_interval_ms:
-                currentChapter = j
-                break
+        currentChapter = time_to_chap(currentChapter)
 
         # if the audio has been stopped, break the loop and return
         if sink is None or not sink.is_playing():
-            return currentChapter
+            return time_to_chap(currentChapter)
         
         desc = f"[{currentChapter + 1}/{len(chapters)}]  {chapters[currentChapter][1]}"
         # format time as mm:ss playback / mm:ss total
@@ -621,7 +627,7 @@ def playlist_progress_timer(sink: simpleaudio.PlayObject, total_time_ms, chapter
 
         # recall this, as things might have changed
         if sink is None or not sink.is_playing():
-            return currentChapter
+            return time_to_chap(currentChapter)
 
         sleep(update_interval_ms / 1000)
     
@@ -629,7 +635,7 @@ def playlist_progress_timer(sink: simpleaudio.PlayObject, total_time_ms, chapter
         print(end_msg)
     print()
 
-    return currentChapter
+    return len(chapters)
 
 
 

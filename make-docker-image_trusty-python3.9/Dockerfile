@@ -28,22 +28,24 @@ RUN apt-get update && apt-get install -y \
     git \
     mecab-ipadic-utf8 \
     libsndfile1 \
-    gfortran
+    gfortran \
+    libtbb2 \
+    libav-tools
 
-# https://www.openssl.org/source/openssl-1.0.2u.tar.gz
+# https://ftp.openssl.org/source/openssl-1.1.1q.tar.gz
 # Install OpenSSL 1.0.2u
 RUN mkdir openssl && \
     cd openssl && \
-    wget --no-check-certificate https://www.openssl.org/source/openssl-1.0.2u.tar.gz && \
-    tar -xf openssl-1.0.2u.tar.gz && \
-    cd openssl-1.0.2u && \
+    wget --no-check-certificate https://ftp.openssl.org/source/openssl-1.1.1q.tar.gz && \
+    tar -xf openssl-1.1.1q.tar.gz && \
+    cd openssl-1.1.1q && \
     ./config --prefix=$HOME/openssl --openssldir=$HOME/openssl shared zlib  && \
     make && \
     make && \
     make install
 
 # Set up pyenv
-ENV PYTHON_VERSION 3.7.5
+ENV PYTHON_VERSION 3.9.18
 RUN apt-get update && apt-get install -y curl
 # Set-up necessary Env vars for PyEnv
 ENV PYENV_ROOT /root/.pyenv
@@ -54,14 +56,16 @@ RUN set -ex \
     && curl --insecure https://pyenv.run | bash \
     && pyenv update
 
-# Install Python 3.7 Command
-RUN PATH="$HOME/openssl:$PATH"  CPPFLAGS="-I$HOME/openssl/include" CFLAGS="-I$HOME/openssl/include/" LDFLAGS="-L$HOME/openssl/lib -Wl,-rpath,$HOME/openssl/lib" LD_LIBRARY_PATH=$HOME/openssl/lib:$LD_LIBRARY_PATH LD_RUN_PATH="$HOME/openssl/lib" CONFIGURE_OPTS="--with-openssl=$HOME/openssl" PYTHON_CONFIGURE_OPTS="--enable-shared" PYTHON_CFLAGS="-O2" pyenv install $PYTHON_VERSION
+
+# Install Python 3.9 Command
+RUN PATH="$HOME/openssl:$PATH"  CPPFLAGS="-I$HOME/openssl/include" CFLAGS="-I$HOME/openssl/include/" LDFLAGS="-L$HOME/openssl/lib -Wl,-rpath,$HOME/openssl/lib" LD_LIBRARY_PATH=$HOME/openssl/lib:$LD_LIBRARY_PATH LD_RUN_PATH="$HOME/openssl/lib" CONFIGURE_OPTS="--with-openssl=$HOME/openssl --enable-shared" PYTHON_CONFIGURE_OPTS="--enable-shared" PYTHON_CFLAGS="-O2" pyenv install $PYTHON_VERSION
+
+# Then, install 3.9 dev as well
+RUN PATH="$HOME/openssl:$PATH"  CPPFLAGS="-I$HOME/openssl/include" CFLAGS="-I$HOME/openssl/include/" LDFLAGS="-L$HOME/openssl/lib -Wl,-rpath,$HOME/openssl/lib" LD_LIBRARY_PATH=$HOME/openssl/lib:$LD_LIBRARY_PATH LD_RUN_PATH="$HOME/openssl/lib" CONFIGURE_OPTS="--with-openssl=$HOME/openssl --enable-shared" PYTHON_CONFIGURE_OPTS="--enable-shared" PYTHON_CFLAGS="-O2" pyenv install 3.9-dev
 
 
 # Set the global Python version
 RUN pyenv global $PYTHON_VERSION && pyenv rehash
 
 # Upgrade pip and install setuptools and wheel
-RUN python3.7 -m pip install --upgrade pip setuptools wheel
-
-RUN apt-get install libav-tools -y
+RUN python3.9 -m pip install --upgrade pip setuptools wheel

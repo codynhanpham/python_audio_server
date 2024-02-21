@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html xmlns="https://www.w3.org/1999/xhtml"
+      xmlns:og="https://ogp.me/ns#"
+      xmlns:fb="https://www.facebook.com/2008/fbml"
+      lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta lang="en">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Audio Client GUI</title>
+    <meta name="description" content="Play and control audio on the sound server remotely."/>
+
+    <meta name="author" content="Cody Nhan Pham"/>
+    <link rel="icon" href="/static/app_icon.png"/>
+
+    <script defer src="/static/main_app_scripts.js"></script>
+    <link rel="stylesheet" href="/static/main_app_style.css">
+
+</head>
+
+<body>    
+    <div id="title-info" class="visible-toggle">
+        <h1 class="center">Audio Server Control</h1>
+        <p class="center small-text dim low-margin-top" style="line-height: calc(1.1 * var(--font-size));">This webpage is an interface to interact with the Audio Server API. You can use this to easily interact with the Audio Server.</br>(Alternatively, a <a href="https://github.com/codynhanpham/python_audio_server/blob/main/ClientGUI.mlapp" target="_blank" rel="noopener noreferrer">MATLAB app</a> is also available with the same functionalities)</p>
+
+        </br>
+    </div>
+
+
+    <!-- App content start from here -->
+    <!-- Tab links -->
+    <div class="tab-bar-wrapper">
+        <div class="tab-bar">
+            <button class="tablinks" onclick="openTab(event, 'Playback')" id="defaultTab" title="Play audio files or playlists">Play Files</button>
+            <button class="tablinks" onclick="openTab(event, 'Generate')" title="Generate, play, or download sine tone or sweep. Generate random playlists with options.">Generate...</button>
+            <button class="tablinks" onclick="openTab(event, 'Info')" title="See additional information about the audio server, or metadata of audio files and playlists">Info</button>
+            <button class="tablinks" onclick="openTab(event, 'Settings')" title="Turn off or reset the audio server, and/or change client webpage behaviors">Settings</button>
+        </div>
+    </div>
+    
+    
+    
+    <!-- Tab content -->
+    <div class="tabcontent-wrapper" id="tabcontent-wrapper">
+        <div id="Playback" class="tabcontent">
+            <div id="playback-type-bar">
+                <div>
+                    <label for="playback-type-dropdown" class="medium-text">Type</label>
+                    <select name="playback-type" id="playback-type-dropdown" class="medium-text" onchange="updatePlaybackType(this.value)">
+                        <option value="play" class="medium-text">Audio Files</option>
+                        <option value="playlist" class="medium-text">Playlists</option>
+                    </select>
+                </div>
+                <button class="client-refresh-button" onclick="refreshAudioPlaylistLists()" title="If you recently restart or re-launch the audio server and the current GUI list does not match what you are expecting, click to Refresh the list.&#10;If the files still does not show up, or if you changed the file content on the server, try Settings > Reload instead.">↻  Refresh</button>
+            </div>
+            
+            <div>
+                <select name="playback-file" id="playback-file-dropdown" class="regular-text" onchange="updatePlaybackFile(this.value)">
+                </select>
+            </div>
+
+            <div class="checkbox-group visible-toggle" id="gapless-checkbox-group">
+                <label for="gapless-checkbox" class="switch">
+                    <input type="checkbox" checked name="gapless-checkbox" id="gapless-checkbox" />
+                    <div class="slider round"></div>
+                </label>
+                <label for="gapless-checkbox">Gapless Playback</label>
+            </div>
+
+            <div id="playback-play-button">
+                <!-- Play Button -->
+                <button class="playback-button" onclick="playRequest()">▶  Play</button>
+            </div>
+            <div id="playback-stop-button" style="display: none;">
+                <!-- Stop Button -->
+                <button class="stop-button" onclick="stopAudio()">◼  Stop </button>
+            </div>
+    
+        </div>
+        
+        <div id="Generate" class="tabcontent">
+            <div class="generate-panel">
+                <h1 class="center" id="generate-tone-sweep">Tone / Sweep</h1>
+                <p>Generate and play simple sine tone or sweep. If you like the generated audio, you can also download it as a <code>.wav</code> file client-side.</p>
+
+                <div>
+                    <label for="generate-tonesweep-type-dropdown" class="medium-text">Type</label>
+                    <select name="generate-tonesweep-type" id="generate-tonesweep-type-dropdown" class="medium-text" onchange="updateToneSweepType(this.value)">
+                        <option value="tone">Tone</option>
+                        <option value="sweep">Sweep</option>
+                    </select>
+                </div>
+
+                <div id="generate-tonesweep-params">
+                    <div class="number-spinner">
+                        <label for="generate-tonesweep-freq">Frequency (Hz)</label>
+                        <div id="generate-tonesweep-freq-spinner" class="spinner" data-min="0" data-max="384000" data-step="440" data-integer="false" data-scale="log2">
+                            <button type="button" class="spinner-button" value="up" onclick="updateNumberSpinner(this)">▲</button>
+                            <input type="number" class="number-field" id="generate-tonesweep-freq" value="440" onblur="validateNumberSpinner(this)">
+                            <button type="button" class="down spinner-button" value="down" onclick="updateNumberSpinner(this)">▼</button>
+                        </div>
+                    </div>
+
+                    <div class="number-spinner disabled-toggle" id="generate-tonesweep-freq-end-wrapper">
+                        <label for="generate-tonesweep-freq-end">End Frequency (Hz)</label>
+                        <div id="generate-tonesweep-freq-end-spinner" class="spinner" data-min="0" data-max="384000" data-step="14080" data-integer="false" data-scale="log2">
+                            <button type="button" class="spinner-button" value="up" onclick="updateNumberSpinner(this)">▲</button>
+                            <input type="number" class="number-field" id="generate-tonesweep-freq-end" value="14080" onblur="validateNumberSpinner(this)">
+                            <button type="button" class="down spinner-button" value="down" onclick="updateNumberSpinner(this)">▼</button>
+                        </div>
+                    </div>
+
+                    <div class="number-spinner">
+                        <label for="generate-tonesweep-duration">Duration (ms)</label>
+                        <div id="generate-tonesweep-duration-spinner" class="spinner" data-min="0" data-max="604800000" data-step="500" data-integer="true">
+                            <button type="button" class="spinner-button" value="up" onclick="updateNumberSpinner(this)">▲</button>
+                            <input type="number" class="number-field" id="generate-tonesweep-duration" value="1000" onblur="validateNumberSpinner(this)">
+                            <button type="button" class="down spinner-button" value="down" onclick="updateNumberSpinner(this)">▼</button>
+                        </div>
+                    </div>
+
+                    <div class="number-spinner">
+                        <label for="generate-tonesweep-amplitude">Amplitude (dB)</label>
+                        <div id="generate-tonesweep-amplitude-spinner" class="spinner" data-min="0" data-max="420" data-step="1" data-integer="false">
+                            <button type="button" class="spinner-button" value="up" onclick="updateNumberSpinner(this)">▲</button>
+                            <input type="number" class="number-field" id="generate-tonesweep-amplitude" value="60" onblur="validateNumberSpinner(this)">
+                            <button type="button" class="down spinner-button" value="down" onclick="updateNumberSpinner(this)">▼</button>
+                        </div>
+                    </div>
+
+                    <div class="number-spinner">
+                        <label for="generate-tonesweep-samplerate">Sample Rate (Hz)</label>
+                        <div id="generate-tonesweep-samplerate-spinner" class="spinner" data-min="4000" data-max="768000" data-step="4000" data-integer="false" data-scale="log2">
+                            <button type="button" class="spinner-button" value="up" onclick="updateNumberSpinner(this)">▲</button>
+                            <input type="number" class="number-field" id="generate-tonesweep-samplerate" value="60" onblur="validateNumberSpinner(this)">
+                            <button type="button" class="down spinner-button" value="down" onclick="updateNumberSpinner(this)">▼</button>
+                        </div>
+                    </div>
+
+                    <div id="generate-tonesweep-sweepfn-dropdown-wrapper" class="disabled-toggle">
+                        <label for="generate-tonesweep-sweepfn-dropdown">Sweep Function</label>
+                        <select name="generate-tonesweep-type" id="generate-tonesweep-sweepfn-dropdown">
+                            <option value="linear">Linear</option>
+                            <option value="quadratic">Quadratic</option>
+                            <option value="logarithmic">Logarithmic</option>
+                            <option value="hyperbolic">Hyperbolic</option>
+                        </select>
+                    </div>
+                </div>
+                
+            </div>
+
+            <div class="spacer-vertical-thicker"></div>
+
+            <div class="generate-panel">
+                <h1 class="center" id="generate-playlist">Playlist</h1>
+                <p>Generate a random playlist on the server. This new playlist can then be played directly from the <code>Play Files</code> tab. You can also download a copy of this playlist client-side as a keepsake.</p>
+
+
+            </div>
+        </div>
+        
+        <div id="Info" class="tabcontent">
+            <h1>Info</h1>
+            <p>Click on the buttons to change the tab content:</p>
+        </div>
+    
+        <div id="Settings" class="tabcontent">
+            <div id="setting-tab">
+                <div id="setting-tab-col1">
+                    <h1 class="center">Properties</h1>
+
+                    <h2>Reload Files</h2>
+                    <p>Ask the <strong>server</strong> to reload the audio files and playlists from disk, in the <code>./audio/</code> and <code>./playlists/</code> folders, respectively. This will also stop any playing audio.</p>
+                    <p>Use this to update the server after you manually add or remove content in the <code>./audio/</code> and <code>./playlists/</code> folders.</p>
+                    <button id="settings-reload-files" onclick="reloadServerFiles()">Reload Files</button>
+                    
+                    <div class="spacer-vertical"></div>
+                </div>
+    
+                <div id="setting-tab-col2">
+                    <h1 style="color: #ec8080; border-color: #ec8080;" class="center">Power Options</h1>
+
+                    <h2>Restart Server</h2>
+                    <p>Restart the server. This will shutdown the server, then restart it from scratch. You may want to use this if something strange happened.</p>
+                    <button id="settings-restart-server" onclick="restartAudioServer()">Restart Server</button>
+
+                    <div class="spacer-vertical"></div>
+
+                    <h2>Shutdown Server</h2>
+                    <p>Shutdown the server. This will stop the server and close the connection. You will need to restart the server <strong>manually</strong> to use it again.</p>
+                    <button id="settings-shutdown-server" onclick="shutdownAudioServer()">Shutdown Server</button>
+
+
+                    <div class="spacer-vertical-thinner"></div>
+                </div>
+
+            </div>
+
+    </div>
+
+
+    <!-- App content end here -->
+</body>
+
+</html>

@@ -10,6 +10,7 @@ os.environ["PATH"] += os.pathsep + resource_path("bin")
 _startup_cwd = os.getcwd()
 BASE_PATH = resource_path()
 
+import scipy
 import multiprocessing
 import utils as utils
 
@@ -42,7 +43,7 @@ if __name__ == '__main__':
 
 
     # instantiate the app
-    app = Flask(__name__)
+    app = Flask(__name__) #
 
 
 
@@ -50,8 +51,8 @@ if __name__ == '__main__':
     print("The source code for this project is available at https://github.com/codynhanpham/python_audio_server\n\n")
 
     IP_ADDRESS = utils.get_local_ip()
-    AUDIO = utils.load_audio(CLI_ARGS=CLI_ARGS)
-    utils.PLAYLIST = utils.load_and_validate_playlists("playlists/", AUDIO)
+    utils.AUDIO = utils.load_audio(CLI_ARGS=CLI_ARGS)
+    utils.PLAYLIST = utils.load_and_validate_playlists("playlists/", utils.AUDIO)
 
     current_log_file = config.get("LOGFILE_PREFIX", "log_") + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
     print(f"New log file started: ./logs/{current_log_file}\n")
@@ -63,7 +64,7 @@ if __name__ == '__main__':
     # Call this function before every request to share global variables
     @app.before_request
     def before_request():
-        g.AUDIO = AUDIO
+        g.AUDIO = utils.AUDIO
         g.PLAYLIST = utils.PLAYLIST
         global current_log_file
         g.current_log_file = current_log_file
@@ -80,7 +81,7 @@ if __name__ == '__main__':
     @app.route('/startnewlog', methods=['GET'])
     def start_new_log():
         time_ns = time.time_ns()
-        print(f"{time_ns}: Received /startnewlog")
+        print(f"\n{time_ns}: Received /startnewlog")
 
         global current_log_file
         current_log_file = config.get("LOGFILE_PREFIX", "log_") + time.strftime("%Y-%m-%d_%H-%M-%S") + ".csv"
@@ -119,6 +120,10 @@ if __name__ == '__main__':
     from routes.batch_files import batch_file_blueprint
     app.register_blueprint(batch_file_blueprint)
 
+    # route to /reload to reload audio files and playlists from disk
+    from routes.reload import reload_blueprint
+    app.register_blueprint(reload_blueprint)
+
     # route to /power/_ to restart or shutdown the server
     from routes.power import power_blueprint
     app.register_blueprint(power_blueprint)
@@ -126,6 +131,12 @@ if __name__ == '__main__':
     # route to /stop to stop all playing audio
     from routes.stop import stop_blueprint
     app.register_blueprint(stop_blueprint)
+
+
+
+    # Finally, route to /app to serve the GUI
+    from routes.gui import GUI_blueprint
+    app.register_blueprint(GUI_blueprint)
 
 
     PORT = config.get("PORT", 5055)

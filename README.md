@@ -4,16 +4,16 @@ Play audio on host computer when a remote client makes an HTTP request. The audi
 
 
 ## Work-in-Progress
-- [x] Upgrade project to Python 3.7
+- [x] Upgrade project to Python 3.9
 - [x] Resample audio files when start up server (to the nearest playable sample rate)
 - [x] More efficient way to pre-process audio files for playlist (resample, etc.)
 - [x] Preload gapless version of playlist
 - [x] Ability to stop audio. Maybe a /stop endpoint
 - [x] Sync the playback progress bar with the audio
 - [x] Move to using simpleaudio for all audio playback.
-- [ ] Add ability to reload audio files and playlists without restarting the server
+- [x] Make it so that only one audio stream is playing at a time.
+- [x] Add ability to reload audio files and playlists without restarting the server
 - [ ] Smoothing the audio transition between songs in playlist (Eliminate the clicking sound)
-- [ ] (Unsure for now) Make it so that only one audio stream is playing at a time.
 
 
 ## Installation
@@ -62,14 +62,15 @@ python main.py # or python3 main.py
 ### Endpoints
 There are a few endpoints that can be used to control the server.
 
-For the most up-to-date list and documentation, visit the `/` (home) endpoint. For example, `http://127.0.0.1:5055/`.
+For the most up-to-date list and documentation, visit the `/docs` endpoint. For example, `http://127.0.0.1:5055/docs`.
 
 ~~This repo is the Python implementation of the ***exact same*** project I wrote in Rust. The `README.md` in the Rust repo has more detailed documentation on the endpoints. Check it out at https://github.com/codynhanpham/rust_audio_server~~
 
 This Python version now has a lot more features than the Rust version. The Rust version is no longer maintained, at least for now. The documentation there still serves as a good basis for understanding the endpoints.
 
 #### Common Endpoints
-- `/` (home): Get the list of endpoints and the general documentation. Use this to get the most up-to-date list of endpoints and their documentation.
+- `/` (home): A client GUI to control the server. This is the easiest way to control the server using the API. You can also use the Inspector to see how the requests are made.
+- `/docs`: Get the list of endpoints and the general documentation. Use this to get the most up-to-date list of endpoints and their documentation.
 - `/play/{filename}`: Play an audio file. The audio file must be in the `./audio` folder.
 - `/playlist/{playlist_name}`: Play a playlist. The playlist must be in the `./playlists` folder.
 - `/playlist/gapless/{playlist_name}`: Play a playlist gaplessly. Better than the regular `/playlist` endpoint in most case.
@@ -84,23 +85,23 @@ If the client is on a different network, an easy way to connect is to use [Tails
 
 
 ## Ubuntu 14.04 Trusty
-This Python code is made sure to work on Ubuntu 14.04 Trusty. The easiest way to run this code on Trusty is to use the pre-built binaries. If you want to run the Python code, you will need to install Python. The code is written in Python 3.7, and the bundled executable should be compatible with Trusty.
+This Python code is made sure to work on Ubuntu 14.04 Trusty. The easiest way to run this code on Trusty is to use the pre-built binaries. If you want to run the Python code, you will need to install Python. The code is written in Python 3.9, and the bundled executable should be compatible with Trusty.
 
-Navigate to the folder [make-docker-image_trusty-python3.7](/make-docker-image_trusty-python3.7) to see the Dockerfile and the script to build the Docker image. The Docker image is built on Ubuntu 14.04 Trusty and has Python 3.7 installed. The Docker image is used for the PyInstaller to build the pre-built binaries.
+Navigate to the folder [make-docker-image_trusty-python3.9](/make-docker-image_trusty-python3.9) to see the Dockerfile and the script to build the Docker image. The Docker image is built on Ubuntu 14.04 Trusty and has Python 3.9 installed. The Docker image is used for the PyInstaller to build the pre-built binaries.
 
-Note, the old version of this project used Python 3.6. If you would prefer this for historical reasons, you can still browse files at the last commit before the upgrade to Python 3.7 [here](https://github.com/codynhanpham/python_audio_server/tree/8b46e1b234f78217132723a60f0af6b27d1348f8/make-docker-image_trusty-python3.6).
+Note, the old version of this project used Python 3.6. If you would prefer this for historical reasons, you can still browse files at the last commit before the upgrade to Python 3.9 [here](https://github.com/codynhanpham/python_audio_server/tree/8b46e1b234f78217132723a60f0af6b27d1348f8/make-docker-image_trusty-python3.6).
 
 
 </br>
 
 ## Development
-For developing the server and ensuring compatibility with Ubuntu 14.04 Trusty, Docker is used. A convienent Dockerfile is provided in the [make-docker-image_trusty-python3.7](/make-docker-image_trusty-python3.7) folder to build the image from scratch. Furthermore, for reproducibility, the pre-built Docker image is also available on the releases page with the [Docker-Images](https://github.com/codynhanpham/python_audio_server/releases/tag/Docker-Images) tag. This tag will be updated whenever the Docker image used for the pre-built binaries is updated.
+For developing the server and ensuring compatibility with Ubuntu 14.04 Trusty, Docker is used. A convienent Dockerfile is provided in the [make-docker-image_trusty-python3.9](/make-docker-image_trusty-python3.9) folder to build the image from scratch. Furthermore, for reproducibility, the pre-built Docker image is also available on the releases page with the [Docker-Images](https://github.com/codynhanpham/python_audio_server/releases/tag/Docker-Images) tag. This tag will be updated whenever the Docker image used for the pre-built binaries is updated.
 
 
 ### General Use and Testing
-If you already have Docker set up, you can either import the Docker image from the releases page or build the Docker image from the Dockerfile. The Docker image is built on Ubuntu 14.04 Trusty and has Python 3.7 installed. The Docker image is used for the PyInstaller to build the pre-built binaries.
+If you already have Docker set up, you can either import the Docker image from the releases page or build the Docker image from the Dockerfile. The Docker image is built on Ubuntu 14.04 Trusty and has Python 3.9 installed. The Docker image is used for the PyInstaller to build the pre-built binaries.
 
-After you have the Docker image loaded, there is also a `.bat` script for Windows to quickly run the image in a container that will mounts the project folder. Simply clone this repo, `cd` into it, and run the [`docker-terminal.bat`](/docker-terminal.bat) file. This will open a terminal in the container with the project folder mounted in `/app`. You can then use the terminal as you would a normal Ubuntu 14.04 Trusty machine. The terminal will have Python 3.7 installed, and you can use the virtual environment to run the server.
+After you have the Docker image loaded, there is also a `.bat` script for Windows to quickly run the image in a container that will mounts the project folder. Simply clone this repo, `cd` into it, and run the [`docker-terminal.bat`](/docker-terminal.bat) file. This will open a terminal in the container with the project folder mounted in `/app`. You can then use the terminal as you would a normal Ubuntu 14.04 Trusty machine. The terminal will have Python 3.9 installed, and you can use the virtual environment to run the server.
 
 Workflow on Windows to run the project in Docker:
 ```batch
@@ -110,13 +111,13 @@ cd python_audio_server
 :: Options: Load the Docker image or build it from the Dockerfile
 
 :: 1. If Build from Dockerfile:
-cd make-docker-image_trusty-python3.7
-docker build -t trusty-python3.7 .
+cd make-docker-image_trusty-python3.9
+docker build -t trusty-python3.9 .
 
 :: 2. If Load from Releases:
 :: (First, download the Docker image from the releases page)
 :: wget ... (or use the browser to download the tar.gz file)
-docker load -i trusty-python3.7.tar.gz
+docker load -i trusty-python3.9.tar.gz
 
 
 :: After you have the Docker image ready, the docker-terminal.bat script can be used anytime after this
@@ -125,10 +126,10 @@ docker load -i trusty-python3.7.tar.gz
 ./docker-terminal.bat
 
 
-:: Now, you are in Ubuntu 14.04 Trusty with Python 3.7 installed. That's it!
+:: Now, you are in Ubuntu 14.04 Trusty with Python 3.9 installed. That's it!
 
 :: Inside the container, remember to start the virtual environment first!!!
-python3.7 -m venv venv
+python3.9 -m venv venv
 source venv/bin/activate
 
 :: Do whatever test or development you need to do
@@ -149,7 +150,7 @@ Workflow on Windows to bundle the project with Docker:
 
 :: First time setup: Install the packages manually
 ./docker-terminal.bat
-python3.7 -m venv linux-venv
+python3.9 -m venv linux-venv
 source linux-venv/bin/activate
 pip install -r requirements-linux.txt
 

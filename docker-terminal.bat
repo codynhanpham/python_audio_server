@@ -9,9 +9,9 @@ echo:
 echo:
 
 @REM Start the container, then cd to the /app directory
-docker run --name python37-interactive -it -p 5057:5055 -v "%cd%:/app" trusty-python37 /bin/bash -c "cd /app && /bin/bash"
+docker run --name python39-interactive -it -p 5057:5055 -v "%cd%:/app" trusty-python39 /bin/bash -c "cd /app && /bin/bash"
 
 @REM To access the server from the host machine, the port is 5057 (not 5055, that is reserved in case you do something else with the code while the container is running/idle)
 
 @REM If the container is stopped, remove it
-docker rm python37-interactive
+docker rm python39-interactive

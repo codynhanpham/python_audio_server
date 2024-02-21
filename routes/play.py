@@ -8,6 +8,7 @@ import csv
 import random
 
 from pydub.playback import play, _play_with_simpleaudio
+import simpleaudio
 
 import utils as utils
 
@@ -15,8 +16,9 @@ play_blueprint = Blueprint('play', __name__)
 
 @play_blueprint.route('/play/<name>', methods=['GET'])
 def play_audio(name):
+    simpleaudio.stop_all()
     time_ns = time.time_ns()
-    print(f"{time_ns}: Received /play/{name}")
+    print(f"\n{time_ns}: Received /play/{name}")
 
     if not name:
         print(f"\x1b[2m\x1b[31m    No name provided\x1b[0m")
@@ -47,7 +49,6 @@ def play_audio(name):
         print(f"\x1b[2m    Source's Sample Rate: {source.frame_rate} Hz")
 
         with utils.ignore_stderr():
-            # play(source)
             sink = _play_with_simpleaudio(source)
             timestart = time.time_ns()
             print(f"\x1b[2m    {timestart}: Playing {name}...\x1b[0m")
@@ -75,8 +76,12 @@ def play_audio(name):
 
 @play_blueprint.route('/play/random', methods=['GET'])
 def play_random():
+    simpleaudio.stop_all()
     time_ns = time.time_ns()
-    print(f"{time_ns}: Received /play/random")
+    print(f"\n{time_ns}: Received /play/random")
+
+    # Clear the PLAYLIST_ABORT flag from /stop
+    utils.PLAYLIST_ABORT = False
 
     AUDIO = g.AUDIO
     current_log_file = g.current_log_file
@@ -125,7 +130,13 @@ def play_random():
         time_ns_playback = time.time_ns()
         count = 0
         sink = None
+        abort = False
         while count < file_count:
+            if utils.PLAYLIST_ABORT:
+                abort = True
+                utils.PLAYLIST_ABORT = False
+                break
+
             # choose a random audio file
             name = random.choice(list(AUDIO.keys()))
             source = AUDIO[name]["audio"]
@@ -158,11 +169,27 @@ def play_random():
 
             count += 1
 
+
+        if abort:
+            print(f"\x1b[2m    (Playback was stopped early)\x1b[0m")
+            status = "stopped early"
+            # append one more row to the log file
+            with open("logs/" + current_log_file, 'a', newline='') as csvfile:
+                logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                logwriter.writerow([time.time_ns(), "play random playback aborted", "success", "N/A"])
+        else:
+            print(f"\x1b[2m    (Playback was fully completed)\x1b[0m")
+            status = "fully completed"
+            # append one more row to the log file
+            with open("logs/" + current_log_file, 'a', newline='') as csvfile:
+                logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                logwriter.writerow([time.time_ns(), "play random | playback fully completed", "success", "N/A"])
+
         playback_duration = (time.time_ns() - time_ns_playback) / 1e9
         request_duration = (time.time_ns() - time_ns) / 1e9
-        print(f"At {time_ns} started playing {file_count} random audio files. Playback took {playback_duration} seconds. Total time since request: {request_duration} seconds.\n\n")
+        print(f"At {time_ns} started playing {file_count} random audio files. Playback took {playback_duration} seconds ({status}). Total time since request: {request_duration} seconds.\n\n")
 
-        return jsonify(message=f"At {time_ns} started playing {file_count} random audio files. Playback took {playback_duration} seconds. Total time since request: {request_duration} seconds."), 200
+        return jsonify(message=f"At {time_ns} started playing {file_count} random audio files. Playback took {playback_duration} seconds ({status}). Total time since request: {request_duration} seconds."), 200
     
     except Exception as e:
         timestart = time.time_ns()

@@ -11,6 +11,7 @@ import random
 import numpy as np
 
 from pydub.playback import play, _play_with_simpleaudio
+import simpleaudio
 from pydub import AudioSegment
 
 import utils as utils
@@ -20,7 +21,7 @@ playlist_blueprint = Blueprint('playlist', __name__)
 @playlist_blueprint.route('/playlist/create', methods=['GET'])
 def create_playlist():
     time_ns = time.time_ns()
-    print(f"{time_ns}: Received /playlist/create")
+    print(f"\n{time_ns}: Received /playlist/create")
 
     AUDIO = g.AUDIO
     PORT = g.PORT
@@ -83,13 +84,23 @@ def create_playlist():
         return jsonify(message=f"Created new playlist file server-side: ./playlists/{playlist_file_name}. To play this new playlist, visit http://{IP_ADDRESS}:{PORT}/playlist/{playlist_file_name}", filename=playlist_file_name), 200
     
     # Else, return the playlist file for download
-    return send_file(f"playlists/{playlist_file_name}", as_attachment=True), 200
+    data = "\n".join(playlist)
+    return send_file(
+        io.BytesIO(data.encode()),
+        mimetype='text/plain',
+        as_attachment=True,
+        download_name=playlist_file_name
+    )
 
 
 @playlist_blueprint.route('/playlist/<name>', methods=['GET'])
 def play_playlist(name):
+    simpleaudio.stop_all()
     time_ns = time.time_ns()
-    print(f"{time_ns}: Received /playlist/{name}")
+    print(f"\n{time_ns}: Received /playlist/{name}")
+
+    # Clear PLAYLIST_ABORT flag from previous /stop request if it exists
+    utils.PLAYLIST_ABORT = False
 
     if not name:
         print(f"\x1b[2m\x1b[31m    No playlist file name provided\x1b[0m")
@@ -141,7 +152,13 @@ def play_playlist(name):
         # Playlist format is a Vec of {type: "audio" or "pause", value: "filename" or "pause_duration in ms"}
         # Iterate through the playlist and play each file: Either play the audio file, or Sleep for the duration
         sink = None
+        abort = False
         for step in playlist:
+            if utils.PLAYLIST_ABORT:
+                abort = True
+                utils.PLAYLIST_ABORT = False # reset the flag
+                break
+
             if step["type"] == "audio":
                 audiofile = AUDIO[step["value"]]
                 source = audiofile["audio"]
@@ -182,12 +199,28 @@ def play_playlist(name):
         # with open("logs/" + current_log_file, 'a', newline='') as csvfile:
         #     csvfile.write(log_data)
         # print(f"\x1b[2m    Appended to log file: ./logs/{current_log_file}\x1b[0m")
+                
+
+        if abort:
+            print(f"\x1b[2m    (Playback was stopped early)\x1b[0m")
+            status = "stopped early"
+            # append one more row to the log file
+            with open("logs/" + current_log_file, 'a', newline='') as csvfile:
+                logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                logwriter.writerow([time.time_ns(), "playlist playback aborted", "success", "N/A"])
+        else:
+            print(f"\x1b[2m    (Playback was fully completed)\x1b[0m")
+            status = "fully completed"
+            # append one more row to the log file
+            with open("logs/" + current_log_file, 'a', newline='') as csvfile:
+                logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                logwriter.writerow([time.time_ns(), "playlist playback fully completed", "success", "N/A"])
 
         playback_duration = (time.time_ns() - time_ns_playback)/1_000_000_000
         request_duration = (time.time_ns() - time_ns)/1_000_000_000
-        print(f"    --> At {time_ns_playback} started playlist {name} ({len(playlist)} audio files / steps). Playback took {playback_duration} seconds. Total time since request: {request_duration} seconds.\n\n")
+        print(f"    --> At {time_ns_playback} started playlist {name} ({len(playlist)} audio files / steps). Playback took {playback_duration} seconds ({status}). Total time since request: {request_duration} seconds.\n\n")
 
-        return jsonify(message=f"At {time_ns_playback} started playlist {name} ({len(playlist)} audio files / steps). Playback took {playback_duration} seconds. Total time since request: {request_duration} seconds."), 200
+        return jsonify(message=f"At {time_ns_playback} started playlist {name} ({len(playlist)} audio files / steps). Playback took {playback_duration} seconds ({status}). Total time since request: {request_duration} seconds."), 200
     except Exception as e:
         print(f"\x1b[2m\x1b[31m    Error occurred: {e}\x1b[0m")
         # write to log file
@@ -206,8 +239,9 @@ def play_playlist(name):
 
 @playlist_blueprint.route('/playlist/gapless/<name>', methods=['GET'])
 def play_playlist_gapless(name):
+    simpleaudio.stop_all()
     time_ns = time.time_ns()
-    print(f"{time_ns}: Received /playlist/gapless/{name}")
+    print(f"\n{time_ns}: Received /playlist/gapless/{name}")
 
     if not name:
         print(f"\x1b[2m\x1b[31m    No playlist file name provided\x1b[0m")
@@ -291,9 +325,9 @@ def play_playlist_gapless(name):
         playback_duration = (time_ns_end - time_ns_playback)/1_000_000_000
         request_duration = (time_ns_end - time_ns)/1_000_000_000
 
-        print(f"    --> At {time_ns_playback} started (gapless) playlist {name} ({len(playlist)} audio files / steps). Playback took {playback_duration} seconds. Total time since request: {request_duration} seconds.\n\n")
+        print(f"    --> At {time_ns_playback} started (gapless) playlist {name} ({len(playlist)} audio files / steps). Playback took {playback_duration} seconds ({status}). Total time since request: {request_duration} seconds.\n\n")
 
-        return jsonify(message=f"At {time_ns_playback} started (gapless) playlist {name} ({len(playlist)} audio files / steps). Playback took {playback_duration} seconds. Total time since request: {request_duration} seconds."), 200
+        return jsonify(message=f"At {time_ns_playback} started (gapless) playlist {name} ({len(playlist)} audio files / steps). Playback took {playback_duration} seconds ({status}). Total time since request: {request_duration} seconds."), 200
     
     except Exception as e:
         if process and process.is_alive():
@@ -312,7 +346,7 @@ def play_playlist_gapless(name):
 @playlist_blueprint.route('/playlist/save/<name>', methods=['GET'])
 def play_save_gapless(name):
     time_ns = time.time_ns()
-    print(f"{time_ns}: Received /playlist/save/{name}")
+    print(f"\n{time_ns}: Received /playlist/save/{name}")
 
     if not name:
         print(f"\x1b[2m\x1b[31m    No playlist file name provided\x1b[0m")

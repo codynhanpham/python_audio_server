@@ -10,6 +10,7 @@ import wave
 import csv
 
 from pydub.playback import play, _play_with_simpleaudio
+import simpleaudio
 import numpy as np
 from scipy.signal import chirp
 
@@ -19,12 +20,8 @@ import utils as utils
 
 sweep_blueprint = Blueprint('sweep', __name__)
 
-# redirect /sweep/ to /sweep
-@sweep_blueprint.route('/sweep/', methods=['GET'])
-def sweep_docs_redirect():
-    return sweep_docs()
-
 @sweep_blueprint.route('/sweep', methods=['GET'])
+@sweep_blueprint.route('/sweep/', methods=['GET'])
 def sweep_docs():
     text = """
     - /sweep/<sweep_type>/<start_freq>/<end_freq>/<duration>/<volume>/<sample_rate>
@@ -55,10 +52,11 @@ def sweep_docs():
 
 @sweep_blueprint.route('/sweep/<sweep_type>/<start_freq>/<end_freq>/<duration>/<volume>/<sample_rate>', methods=['GET'])
 def play_sweep(sweep_type, start_freq, end_freq, duration, volume, sample_rate):
+    simpleaudio.stop_all()
     time_ns = time.time_ns()
     # Get the ?edge= query string, else default to nothing
     edge = request.args.get('edge') or request.args.get('edges') or 0
-    print(f"{time_ns}: Received /sweep/{sweep_type}/{start_freq}/{end_freq}/{duration}/{volume}/{sample_rate}?edge={edge}")
+    print(f"\n{time_ns}: Received /sweep/{sweep_type}/{start_freq}/{end_freq}/{duration}/{volume}/{sample_rate}?edge={edge}")
 
     # Parse edge into an int: if float then round to nearest int
     try:
@@ -131,7 +129,7 @@ def save_sweep(sweep_type, start_freq, end_freq, duration, volume, sample_rate):
     time_ns = time.time_ns()
     # Get the ?edge= query string, else default to nothing
     edge = request.args.get('edge') or request.args.get('edges') or 0
-    print(f"{time_ns}: Received /save_sweep/{sweep_type}/{start_freq}/{end_freq}/{duration}/{volume}/{sample_rate}?edge={edge}")
+    print(f"\n{time_ns}: Received /save_sweep/{sweep_type}/{start_freq}/{end_freq}/{duration}/{volume}/{sample_rate}?edge={edge}")
 
     # validate args
     try:

@@ -7,4 +7,4 @@ pip install --upgrade setuptools wheel
 
 pip install -r requirements_windows.txt
 
-pyinstaller -F --name py_audio_server --add-binary="bin/async_get.exe;bin" --add-binary="bin/ffmpeg.exe;bin" --add-binary="bin/ffprobe.exe;bin" --hidden-import="scipy.special.cython_special" main.py
+pyinstaller -F --name py_audio_server --add-binary="bin/async_get.exe;bin" --add-binary="bin/ffmpeg.exe;bin" --add-binary="bin/ffprobe.exe;bin" --hidden-import="scipy.special.cython_special" --add-data="static/*;static" main.py

@@ -5,7 +5,17 @@ if not hasattr(time, 'time_ns'):
 
 info_blueprint = Blueprint('info', __name__)
 
-@info_blueprint.route('/', methods=['GET'])
+@info_blueprint.route('/docs', methods=['GET'])
+@info_blueprint.route('/doc', methods=['GET'])
+@info_blueprint.route('/documentation', methods=['GET'])
+@info_blueprint.route('/documentations', methods=['GET'])
+@info_blueprint.route('/help', methods=['GET'])
+# also handle route with trailing slash
+@info_blueprint.route('/docs/', methods=['GET'])
+@info_blueprint.route('/doc/', methods=['GET'])
+@info_blueprint.route('/documentation/', methods=['GET'])
+@info_blueprint.route('/documentations/', methods=['GET'])
+@info_blueprint.route('/help/', methods=['GET'])
 def root_documentation():
     text = """
     Available routes:
@@ -22,6 +32,10 @@ def root_documentation():
         - GET /info/<name>                  --> get info about an audio file or playlist
                 (eg. /info/1.wav ==> 1.wav info)
                 (eg. /info/playlist_file.txt ==> playlist_file.txt info)
+
+
+        - GET /reload                       --> reload the audio files and playlists from disk (the ./audio and ./playlists folders)
+                (eg. /reload ==> Reloaded audio files and playlists)
 
 
         - GET /startnewlog                  --> start a new log file
@@ -201,7 +215,7 @@ def root_documentation():
 @info_blueprint.route('/list', methods=['GET'])
 def list_items():
 	time_ns = time.time_ns()
-	print(f"{time_ns}: Received /list")
+	print(f"\n{time_ns}: Received /list")
 	AUDIO = g.AUDIO
 	audio_names = sorted(AUDIO.keys())
 
@@ -236,7 +250,7 @@ def info_note():
 @info_blueprint.route('/info/<name>', methods=['GET'])
 def item_info(name):
     time_ns = time.time_ns()
-    print(f"{time_ns}: Received /info/{name}")
+    print(f"\n{time_ns}: Received /info/{name}")
 
     if not name:
         print(f"\x1b[2m\x1b[31m    No playlist file name provided\x1b[0m")

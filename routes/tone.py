@@ -10,6 +10,7 @@ import wave
 import csv
 
 from pydub.playback import play, _play_with_simpleaudio
+import simpleaudio
 import numpy as np
 
 
@@ -19,10 +20,11 @@ tone_blueprint = Blueprint('tone', __name__)
 
 @tone_blueprint.route('/tone/<frequency>/<duration>/<volume>/<sample_rate>', methods=['GET'])
 def play_tone(frequency, duration, volume, sample_rate):
+    simpleaudio.stop_all()
     time_ns = time.time_ns()
     # Get the ?edge= query string, else default to nothing
     edge = request.args.get('edge') or request.args.get('edges') or 0
-    print(f"{time_ns}: Received /tone/{frequency}/{duration}/{volume}/{sample_rate}?edge={edge}")
+    print(f"\n{time_ns}: Received /tone/{frequency}/{duration}/{volume}/{sample_rate}?edge={edge}")
 
     # Parse edge into an int: if float then round to nearest int
     try:
@@ -92,7 +94,7 @@ def save_tone(frequency, duration, volume, sample_rate):
     time_ns = time.time_ns()
     # Get the ?edge= query string, else default to nothing
     edge = request.args.get('edge') or request.args.get('edges') or 0
-    print(f"{time_ns}: Received /save_tone/{frequency}/{duration}/{volume}/{sample_rate}?edge={edge}")
+    print(f"\n{time_ns}: Received /save_tone/{frequency}/{duration}/{volume}/{sample_rate}?edge={edge}")
 
     # validate the arguments: frequency and volume must be numbers, duration and sample_rate must be integers
     try:

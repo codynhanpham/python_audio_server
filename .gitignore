@@ -1,6 +1,7 @@
 __pycache__
 venv
 linux-venv
+39-venv
 build
 dist
 logs
