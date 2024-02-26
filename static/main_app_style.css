@@ -1,6 +1,7 @@
 /* variables */
 /* font-size */
 :root {
+    --font-size: 14px;
     --font-size: clamp(0.75rem, 0.5864rem + 0.9697vw, 1.75rem); /* 12px - 28px */
     --background-color: #111111;
     
@@ -28,6 +29,7 @@ body {
 
     font-size: var(--font-size);
     line-height: calc(1.9 * var(--font-size));
+    min-height: calc(100vh - 2 * 1.618 * var(--font-size));
 }
 
 ::-webkit-scrollbar {
@@ -163,6 +165,7 @@ select {
     margin: calc(0.8 * var(--font-size)) 0;
     border: none;
     border-radius: calc(0.4 * var(--font-size));
+    box-shadow: 0 0 0 1.1px var(--select-box-border-color);
     box-shadow: 0 0 0 max(calc(0.075 * var(--font-size)), 1.2px) var(--select-box-border-color);
     background-color: rgb(52,52,52);
     color: var(--text-color);
@@ -172,6 +175,7 @@ select {
 }
 select:focus {
     outline: none;
+    box-shadow: 0 0 0 1.13px #bb9c75f3;
     box-shadow: 0 0 0 max(calc(0.1 * var(--font-size)), 1.25px) #bb9c75f3;
 }
 
@@ -228,6 +232,7 @@ input[type=number] {
     flex-wrap: wrap;
     align-items: center;
     column-gap: calc(0.4 * var(--font-size));
+    width: auto;
     width: fit-content;
 }
 .number-spinner label {
@@ -238,6 +243,7 @@ input[type=number] {
 .number-spinner input {
     padding: calc(0.5 * var(--font-size)) calc(0.75 * var(--font-size));
     margin: 0;
+    box-shadow: 0 0 0 1.1px var(--select-box-border-color);
     box-shadow: 0 0 0 max(calc(0.075 * var(--font-size)), 1.2px) var(--select-box-border-color);
     border: none;
     border-radius: 0;
@@ -253,6 +259,7 @@ input[type=number] {
     background-color: rgb(58, 58, 58);
     border: none;
     outline: none;
+    box-shadow: 0 0 0 1.13px #bb9c75f3 !important;
     box-shadow: inset 0 0 0 max(calc(0.1 * var(--font-size)), 1.25px) #bb9c75f3 !important;
 }
 .number-spinner .spinner {
@@ -260,6 +267,7 @@ input[type=number] {
     flex-direction: row;
     column-gap: 0;
     border-radius: calc(0.4 * var(--font-size));
+    box-shadow: 0 0 0 1.1px var(--select-box-border-color);
     box-shadow: 0 0 0 max(calc(0.075 * var(--font-size)), 1.2px) var(--select-box-border-color);
     overflow: hidden;
     margin: calc(0.8 * var(--font-size)) 0;
@@ -299,11 +307,13 @@ input[type=number] {
 /* red border highlight */
 .red-border-highlight {
     /* #f38b8bf3 inner border so that the layout won't shift */
+    box-shadow: 0 0 0 2px #f38b8bf3;
     box-shadow: 0 0 0 max(calc(0.12 * var(--font-size)), 2px) #f38b8bf3;
 }
 /* yellow border highlight */
 .yellow-border-highlight {
     /* #f3e68b inner border so that the layout won't shift */
+    box-shadow: 0 0 0 2px #f3e68bf3;
     box-shadow: 0 0 0 max(calc(0.12 * var(--font-size)), 2px) #f3e68bf3;
 }
 
@@ -313,6 +323,7 @@ input[type=number] {
     position: relative;
     min-width: 100%;
     margin: 0;
+    height: auto;
     height: fit-content;
     padding: calc(0.5 * var(--font-size)) 0;
     background-color: var(--tab-background-color);
@@ -375,6 +386,7 @@ input[type=number] {
 }
 .tablinks:focus-visible {
     outline: none;
+    box-shadow: inset 0 0 0 1.13px #bb9c75f3;
     box-shadow: inset 0 0 0 max(calc(0.1 * var(--font-size)), 1.25px) #bb9c75f3;
     background-color: var(--tab-hover-color);
 
@@ -415,6 +427,7 @@ input[type=number] {
     min-width: 0;
     width: 100%;
     min-height: 0;
+    height: auto;
     height: fit-content;
     border-radius: calc(1.15 * var(--font-size));
     background-color: var(--content-background-color);
@@ -444,6 +457,7 @@ input[type=number] {
     flex-direction: row;
     align-items: center;
     column-gap: calc(0.5 * var(--font-size));
+    width: auto;
     width: fit-content;
     margin: calc(0.8 * var(--font-size)) 0;
 }
@@ -451,6 +465,7 @@ input[type=number] {
     line-height: calc(1.8 * var(--font-size));
     margin: 0;
     margin-left: calc(0.4 * var(--font-size));
+    cursor: pointer;
 }
 /* Checkbox toggle */
 .switch {
@@ -464,7 +479,8 @@ input[type=number] {
 .switch input {
     opacity: 0;
 }
-.checkbox-group:focus-within {
+.checkbox-group:has(:focus-visible){
+    box-shadow: inset 0 0 0 1.13px #bb9c75f3;
     box-shadow: inset 0 0 0 max(calc(0.1 * var(--font-size)), 1.25px) #bb9c75f3;
 }
 
