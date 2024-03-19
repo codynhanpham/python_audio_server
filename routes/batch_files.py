@@ -52,7 +52,7 @@ def create_batch_file_zip(audio_files, playlists, host_ip, port, with_async):
             zip_file.writestr(audio_file_name + ".bat", batch_file)
 
         for playlist_file_name in playlist_file_names:
-            batch_file = create_batch_file(playlist_file_name, host_ip, port, with_async, "playlist")
+            batch_file = create_batch_file(playlist_file_name, host_ip, port, with_async, "playlist/gapless")
             zip_file.writestr(playlist_file_name + ".bat", batch_file)
 
         # create the batch file to start a new log, add to the zip file

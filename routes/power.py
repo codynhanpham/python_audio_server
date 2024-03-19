@@ -11,6 +11,7 @@ import string
 
 import utils as utils
 import simpleaudio
+import faulthandler; faulthandler.enable()
 
 power_blueprint = Blueprint('power', __name__)
 

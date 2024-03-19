@@ -5,6 +5,8 @@ import time, os
 if not hasattr(time, 'time_ns'):
     time.time_ns = lambda: int(time.time() * 1e9)
 
+import faulthandler
+
 import csv
 import hashlib
 import random
@@ -164,6 +166,7 @@ def play_playlist(name):
                 source = audiofile["audio"]
 
                 with utils.ignore_stderr():
+                    faulthandler.enable()
                     # play(source)
                     sink = _play_with_simpleaudio(source)
                     timestart = time.time_ns()
@@ -294,6 +297,7 @@ def play_playlist_gapless(name):
         chapters = playlist_gapless["chapters"]
 
         with utils.ignore_stderr():
+            faulthandler.enable()
             # play(playlistSegment) # opt for simpleaudio instead of pydub's play instead, so the playback is non-blocking
             sink = _play_with_simpleaudio(playlistSegment) # this is non-blocking (using simpleaudio)
             time_ns_playback = time.time_ns() # immediately after the audio output starts

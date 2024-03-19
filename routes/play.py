@@ -4,6 +4,9 @@ import time, os
 if not hasattr(time, 'time_ns'):
     time.time_ns = lambda: int(time.time() * 1e9)
 
+from threading import Thread
+import faulthandler
+
 import csv
 import random
 
@@ -49,6 +52,7 @@ def play_audio(name):
         print(f"\x1b[2m    Source's Sample Rate: {source.frame_rate} Hz")
 
         with utils.ignore_stderr():
+            faulthandler.enable()
             sink = _play_with_simpleaudio(source)
             timestart = time.time_ns()
             print(f"\x1b[2m    {timestart}: Playing {name}...\x1b[0m")
@@ -142,6 +146,7 @@ def play_random():
             source = AUDIO[name]["audio"]
 
             with utils.ignore_stderr():
+                faulthandler.enable()
                 # play(source)
                 sink = _play_with_simpleaudio(source)
                 timestart = time.time_ns()

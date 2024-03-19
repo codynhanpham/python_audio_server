@@ -10,6 +10,9 @@ os.environ["PATH"] += os.pathsep + resource_path("bin")
 _startup_cwd = os.getcwd()
 BASE_PATH = resource_path()
 
+# import faulthandler; faulthandler.enable()
+import tracemalloc
+
 import scipy
 import multiprocessing
 import utils as utils
@@ -26,7 +29,7 @@ if not hasattr(time, 'time_ns'):
 import argparse
 
 
-
+tracemalloc.start()
 if __name__ == '__main__':
     multiprocessing.freeze_support() # this is required for pyinstaller to work with multiprocessing
 
@@ -142,4 +145,10 @@ if __name__ == '__main__':
     PORT = config.get("PORT", 5055)
     print(f"Serving app at http://{IP_ADDRESS}:{PORT}/\n")
     print("(Hit Ctrl+C to stop the server gracefully)\n\n")
+
+    # displaying the memory
+    print(tracemalloc.get_traced_memory())
+    
+    # stopping the library
+    tracemalloc.stop()
     serve(app, host='0.0.0.0', port=PORT)

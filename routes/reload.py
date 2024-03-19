@@ -6,6 +6,7 @@ if not hasattr(time, 'time_ns'):
 
 import utils as utils
 import simpleaudio
+import faulthandler; faulthandler.enable()
 
 reload_blueprint = Blueprint('reload', __name__)
 

@@ -13,6 +13,7 @@ bat_files
 
 */ffmpeg.exe
 */ffprobe.exe
+bin/tbb_win
 
 py_audio_server
 py_audio_server.exe

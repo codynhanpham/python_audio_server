@@ -33,7 +33,6 @@ RUN apt-get update && apt-get install -y \
     libav-tools
 
 # https://ftp.openssl.org/source/openssl-1.1.1q.tar.gz
-# Install OpenSSL 1.0.2u
 RUN mkdir openssl && \
     cd openssl && \
     wget --no-check-certificate https://ftp.openssl.org/source/openssl-1.1.1q.tar.gz && \
@@ -69,3 +68,5 @@ RUN pyenv global $PYTHON_VERSION && pyenv rehash
 
 # Upgrade pip and install setuptools and wheel
 RUN python3.9 -m pip install --upgrade pip setuptools wheel
+
+RUN apt-get install libtbb-dev -y
