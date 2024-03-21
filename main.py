@@ -13,11 +13,11 @@ BASE_PATH = resource_path()
 # import faulthandler; faulthandler.enable()
 import tracemalloc
 
+from dotenv import dotenv_values
+
 import scipy
 import multiprocessing
 import utils as utils
-
-from dotenv import dotenv_values
 
 from flask import Flask, jsonify, g
 from waitress import serve
@@ -29,9 +29,9 @@ if not hasattr(time, 'time_ns'):
 import argparse
 
 
-tracemalloc.start()
+
 if __name__ == '__main__':
-    multiprocessing.freeze_support() # this is required for pyinstaller to work with multiprocessing
+    # multiprocessing.freeze_support() # this is required for pyinstaller to work with multiprocessing
 
     config = dotenv_values(".env")
     args = sys.argv[:]
@@ -41,9 +41,22 @@ if __name__ == '__main__':
                         prog=start_command,
                         description="API server to play audio locally from remote client's requests.")
     parser.add_argument('--no-convert-to-s16', action='store_true', help='Skip all audio files\' bit depth conversion to 16-bit signed integer format and simply uses the original audio files. Note that playback is less reliable for audio files with bit depth > 16 bits.')
+    parser.add_argument('--list-serial', '-ls', action='store_true', help='List all available serial ports and exit.')
 
     CLI_ARGS, _ = parser.parse_known_args()
 
+    if CLI_ARGS.list_serial:
+        import serial.tools.list_ports
+        if not serial.tools.list_ports or not list(serial.tools.list_ports.comports()):
+            print("No serial ports found.")
+            sys.exit(0)
+        for port in serial.tools.list_ports.comports():
+            print(port)
+        sys.exit(0)
+
+
+
+    tracemalloc.start()
 
     # instantiate the app
     app = Flask(__name__) #

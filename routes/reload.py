@@ -12,7 +12,10 @@ reload_blueprint = Blueprint('reload', __name__)
 
 @reload_blueprint.route('/reload', methods=['GET'])
 def reload():
-    simpleaudio.stop_all()
+    try:
+        simpleaudio.stop_all()
+    except:
+        pass
     utils.PLAYLIST_ABORT = True
     # Reload audio files and playlists from disk
     time_ns = time.time_ns()

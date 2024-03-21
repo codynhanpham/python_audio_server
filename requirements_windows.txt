@@ -15,6 +15,7 @@ pefile==2023.2.7
 pydub==0.25.1
 pyinstaller==6.4.0
 pyinstaller-hooks-contrib==2024.1
+pyserial==3.5
 python-dotenv==1.0.1
 pywin32-ctypes==0.2.2
 resampy==0.4.2

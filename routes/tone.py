@@ -66,6 +66,7 @@ def play_tone(frequency, duration, volume, sample_rate):
     try:
         with utils.ignore_stderr():
             # play(tone)
+            utils.send_ttl_pulse()
             sink = _play_with_simpleaudio(tone)
             timestart = time.time_ns()
             print(f"\x1b[2m    {timestart}: Playing {frequency}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz (edge: {edge}ms)...\x1b[0m")

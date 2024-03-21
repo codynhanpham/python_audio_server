@@ -101,6 +101,7 @@ def play_sweep(sweep_type, start_freq, end_freq, duration, volume, sample_rate):
     try:
         with utils.ignore_stderr():
             # play(sweep)
+            utils.send_ttl_pulse()
             sink = _play_with_simpleaudio(sweep)
             timestart = time.time_ns()
             print(f"\x1b[2m    {timestart}: Playing {sweep_type}_{start_freq}Hz_{end_freq}Hz_{duration}ms_{volume}dB_@{sample_rate}Hz (edge: {edge}ms)...\x1b[0m")

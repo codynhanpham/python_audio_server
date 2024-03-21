@@ -6,8 +6,13 @@ let LastSelection = {
     audio: null
 };
 let isPlaying = false; // To keep track of the current state of the audio playback
-let playbackFetchController = new AbortController(); // To keep track of the current fetch request for audio playback, to handle /restart requests gracefully
-let playbackFetchSignal = playbackFetchController.signal;
+let playbackFetchController = null; playbackFetchSignal = null;
+// check if AbortController is supported
+if ('AbortController' in window) {
+    playbackFetchController = new AbortController(); // To keep track of the current fetch request for audio playback, to handle /restart requests gracefully
+    playbackFetchSignal = playbackFetchController.signal;
+}
+
 
 
 // Known elements, set to null if not found or not intialized yet
@@ -400,7 +405,7 @@ function restartAudioServer() {
     document.getElementById('settings-restart-server').style.opacity = '0.8';
     document.getElementById('settings-restart-server').classList.add('red-border-highlight')
 
-    if (isPlaying) {
+    if (isPlaying && ('AbortController' in window)) {
         playbackFetchController.abort(); // Abort the current fetch request for audio playback
     }
     fetch('/restart?restart=true')
@@ -466,7 +471,9 @@ function shutdownAudioServer() {
                 return;
             }
 
-            playbackFetchController.abort(); // Abort the current fetch request for audio playback
+            if ('AbortController' in window) {
+                playbackFetchController.abort(); // Abort the current fetch request for audio playback
+            }
             fetch(`/shutdown?token=${token}`) // Send the token to the server to confirm the shutdown
                 .then(response => {
                     // If status is 400, the token was expired, so alert the user

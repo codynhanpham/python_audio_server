@@ -149,12 +149,14 @@ def play_playlist(name):
 
     log_data = ""
     try:
-        time_ns_playback = time.time_ns()
         count = 0
         # Playlist format is a Vec of {type: "audio" or "pause", value: "filename" or "pause_duration in ms"}
         # Iterate through the playlist and play each file: Either play the audio file, or Sleep for the duration
         sink = None
         abort = False
+        time_ns_playback = time.time_ns()
+        utils.send_ttl_pulse()
+        print(f"\x1b[32m    {time_ns_playback}: Starting playlist {name} ({len(playlist)} steps)...\x1b[0m")
         for step in playlist:
             if utils.PLAYLIST_ABORT:
                 abort = True
@@ -168,6 +170,7 @@ def play_playlist(name):
                 with utils.ignore_stderr():
                     faulthandler.enable()
                     # play(source)
+                    # utils.send_ttl_pulse() # This will send the pulse for every audio file, which may or may not be desired
                     sink = _play_with_simpleaudio(source)
                     timestart = time.time_ns()
                     print(f"\x1b[32m    [{count+1}/{len(playlist)}] {timestart}: Playing {step['value']}...\x1b[0m")
@@ -184,6 +187,7 @@ def play_playlist(name):
                 count += 1
 
             elif step["type"] == "pause":
+                # utils.send_ttl_pulse() # This will send the pulse for every audio file, which may or may not be desired
                 timestart = time.time_ns()
                 print(f"\x1b[34m    [{count+1}/{len(playlist)}] {timestart}: Pausing for {step['value']}ms...\x1b[0m")
                 time.sleep(step["value"]/1000)
@@ -299,6 +303,7 @@ def play_playlist_gapless(name):
         with utils.ignore_stderr():
             faulthandler.enable()
             # play(playlistSegment) # opt for simpleaudio instead of pydub's play instead, so the playback is non-blocking
+            utils.send_ttl_pulse()
             sink = _play_with_simpleaudio(playlistSegment) # this is non-blocking (using simpleaudio)
             time_ns_playback = time.time_ns() # immediately after the audio output starts
             print(f"\x1b[32m    {time_ns_playback}: Playing {name}...\x1b[0m")

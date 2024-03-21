@@ -53,6 +53,7 @@ def play_audio(name):
 
         with utils.ignore_stderr():
             faulthandler.enable()
+            utils.send_ttl_pulse()
             sink = _play_with_simpleaudio(source)
             timestart = time.time_ns()
             print(f"\x1b[2m    {timestart}: Playing {name}...\x1b[0m")
@@ -148,6 +149,7 @@ def play_random():
             with utils.ignore_stderr():
                 faulthandler.enable()
                 # play(source)
+                utils.send_ttl_pulse()
                 sink = _play_with_simpleaudio(source)
                 timestart = time.time_ns()
                 print(f"\x1b[32m    [{count + 1}/{file_count}] {timestart}: Playing {name}...\x1b[0m")
