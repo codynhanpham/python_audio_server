@@ -26,16 +26,21 @@ PLAYLIST_ABORT = False
 config = dotenv_values(".env")
 BAUDRATE = int(config.get("BAUDRATE", 9600))
 SERIAL_PORT = config.get("SERIAL_PORT", "COM3")
+PULSE_BYTE_COUNT = int(config.get("PULSE_BYTE_COUNT", 1))
 
 def start_serial_device():
     global SerialDevice
     # try to set serial Device, if no serial device is found, set SerialDevice to None
     try:
         SerialDevice = serial.Serial(SERIAL_PORT, BAUDRATE, timeout=1)
+        print(f"\x1b[1m\x1b[32m\n\nSerial device found at {SERIAL_PORT} (baudrate: {BAUDRATE})\x1b[0m")
+        print(f"\x1b[1m\x1b[32m    --> Connected\x1b[0m")
     except:
         SerialDevice = None
 
     return SerialDevice
+
+SERIAL_DEVICE = start_serial_device()
 
 
 _DEFAULT_POOL = ThreadPoolExecutor()
@@ -655,14 +660,14 @@ def playlist_progress_timer(sink: simpleaudio.PlayObject, total_time_ms, chapter
     return len(chapters)
 
 
-def send_ttl_pulse(bits=8):
-    SerialDevice = start_serial_device()
+def send_ttl_pulse():
     # send a TTL pulse to the TTL device
-    if SerialDevice is not None:
-        bytes_to_send = bytearray([0xFF] * round(bits / 8))
-        sentlength = SerialDevice.write(bytes_to_send)
+    if SERIAL_DEVICE is not None:
+        bytes_to_send = bytearray()
+        for i in range(PULSE_BYTE_COUNT):
+            bytes_to_send.append(0xFF)
+        sentlength = SERIAL_DEVICE.write(bytes_to_send)
         print("\x1b[2m\x1b[34m    Sent TTL pulse to the Serial device ({} bytes)\x1b[0m".format(sentlength))
-        SerialDevice.close()
     else:
         print("\x1b[2m\x1b[33m    WARNING: No TTL device found. TTL pulse not sent.\x1b[0m")
 

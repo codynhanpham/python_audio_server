@@ -17,7 +17,6 @@ from dotenv import dotenv_values
 
 import scipy
 import multiprocessing
-import utils as utils
 
 from flask import Flask, jsonify, g
 from waitress import serve
@@ -54,6 +53,9 @@ if __name__ == '__main__':
             print(port)
         sys.exit(0)
 
+
+    # import the utils module
+    import utils as utils
 
 
     tracemalloc.start()
@@ -161,7 +163,7 @@ if __name__ == '__main__':
 
     # displaying the memory
     print(tracemalloc.get_traced_memory())
-    
+
     # stopping the library
     tracemalloc.stop()
     serve(app, host='0.0.0.0', port=PORT)
