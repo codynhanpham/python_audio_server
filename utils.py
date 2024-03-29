@@ -27,6 +27,7 @@ config = dotenv_values(".env")
 BAUDRATE = int(config.get("BAUDRATE", 9600))
 SERIAL_PORT = config.get("SERIAL_PORT", "COM3")
 PULSE_BYTE_COUNT = int(config.get("PULSE_BYTE_COUNT", 1))
+TRIGGER_AT_STOP = config.get("TRIGGER_AT_STOP", "False").lower() == "true" # trigger TTL pulse at the end of the playlist, if True
 
 def start_serial_device():
     global SerialDevice
@@ -582,14 +583,16 @@ def progress(value, length=40, title="", vmin=0.0, vmax=1.0, postfix="", auto_re
 
 # function progress_timer(time_ms) that uses tqdm to make a timer progress bar
 # Usage: playlist_progress_timer(6000, [[0, "First Half"], [2500, "Second Half"]], "Finished!")
-def playlist_progress_timer(sink: simpleaudio.PlayObject, total_time_ms, chapters, end_msg="", update_interval_ms=1000, time_stamp_offset=0):
-    # sink is the simpleaudio PlayObject
+def playlist_progress_timer(sink: simpleaudio.PlayObject, total_time_ms, chapters, end_msg="", update_interval_ms=1000, time_stamp_offset=0) -> int:
+    """
+    `sink` is the simpleaudio PlayObject.
 
-    # chapters is a list of [time_ms (end of chap), description] pairs
-    # for example, [[1000, "Chapter 1"], [total_time_ms, "Chapter 2"]]
+    `chapters` is a list of [time_ms (end of chap), description] pairs.
+    For example, `[[1000, "Chapter 1"], [total_time_ms, "Chapter 2"]]`
 
-    # time_stamp_offset is the time when the audio started playing in the past, use it to calculate the actual progress since start
-    # if time_stamp_offset is 0, use the current time as the start time
+    `time_stamp_offset` is the time when the audio started playing in the past, use it to calculate the actual progress since start. If time_stamp_offset is 0, use the current time as the start time.
+    """
+
     print("\n")
     if time_stamp_offset == 0:
         time_stamp_offset = time.time_ns() // 1_000_000
@@ -619,7 +622,7 @@ def playlist_progress_timer(sink: simpleaudio.PlayObject, total_time_ms, chapter
             break
 
     def time_to_chap(currentChapter):
-        i = (time.time_ns() // 1_000_000 - time_stamp_offset) // update_interval_ms
+        i = (time.time_ns() / 1_000_000 - time_stamp_offset) / update_interval_ms
         for j in range(currentChapter, len(chapters)):
             if chapters[j][0] > i * update_interval_ms:
                 return j

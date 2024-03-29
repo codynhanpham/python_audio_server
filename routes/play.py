@@ -59,6 +59,9 @@ def play_audio(name):
             print(f"\x1b[2m    {timestart}: Playing {name}...\x1b[0m")
             sink.wait_done()
         print(f"\x1b[2m    Finished (job at {timestart})\x1b[0m")
+        
+        if utils.TRIGGER_AT_STOP:
+            utils.send_ttl_pulse()
 
         # write to log file
         with open("logs/" + current_log_file, 'a', newline='') as csvfile:
@@ -155,6 +158,9 @@ def play_random():
                 print(f"\x1b[32m    [{count + 1}/{file_count}] {timestart}: Playing {name}...\x1b[0m")
                 sink.wait_done()
             print(f"\x1b[2m    Finished (job at {timestart})\x1b[0m")
+            
+            if utils.TRIGGER_AT_STOP:
+                utils.send_ttl_pulse()
 
             # write to log file
             with open("logs/" + current_log_file, 'a', newline='') as csvfile:

@@ -108,6 +108,9 @@ def play_sweep(sweep_type, start_freq, end_freq, duration, volume, sample_rate):
             sink.wait_done()
         print(f"\x1b[2m    Finished (job at {timestart})\x1b[0m")
 
+        if utils.TRIGGER_AT_STOP:
+            utils.send_ttl_pulse()
+
         # write to log file
         with open("logs/" + current_log_file, 'a', newline='') as csvfile:
             logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)

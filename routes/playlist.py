@@ -148,6 +148,7 @@ def play_playlist(name):
     print(f"\x1b[2m    Appended request info to log file: ./logs/{current_log_file}\x1b[0m")
 
     log_data = ""
+    pulsed_start = False
     try:
         count = 0
         # Playlist format is a Vec of {type: "audio" or "pause", value: "filename" or "pause_duration in ms"}
@@ -156,6 +157,7 @@ def play_playlist(name):
         abort = False
         time_ns_playback = time.time_ns()
         utils.send_ttl_pulse()
+        pulsed_start = True
         print(f"\x1b[32m    {time_ns_playback}: Starting playlist {name} ({len(playlist)} steps)...\x1b[0m")
         for step in playlist:
             if utils.PLAYLIST_ABORT:
@@ -210,6 +212,8 @@ def play_playlist(name):
 
         if abort:
             print(f"\x1b[2m    (Playback was stopped early)\x1b[0m")
+            if utils.TRIGGER_AT_STOP:
+                utils.send_ttl_pulse()
             status = "stopped early"
             # append one more row to the log file
             with open("logs/" + current_log_file, 'a', newline='') as csvfile:
@@ -217,6 +221,8 @@ def play_playlist(name):
                 logwriter.writerow([time.time_ns(), "playlist playback aborted", "success", "N/A"])
         else:
             print(f"\x1b[2m    (Playback was fully completed)\x1b[0m")
+            if utils.TRIGGER_AT_STOP:
+                utils.send_ttl_pulse()
             status = "fully completed"
             # append one more row to the log file
             with open("logs/" + current_log_file, 'a', newline='') as csvfile:
@@ -230,6 +236,8 @@ def play_playlist(name):
         return jsonify(message=f"At {time_ns_playback} started playlist {name} ({len(playlist)} audio files / steps). Playback took {playback_duration} seconds ({status}). Total time since request: {request_duration} seconds."), 200
     except Exception as e:
         print(f"\x1b[2m\x1b[31m    Error occurred: {e}\x1b[0m")
+        if pulsed_start and utils.TRIGGER_AT_STOP:
+            utils.send_ttl_pulse()
         # write to log file
         with open("logs/" + current_log_file, 'a', newline='') as csvfile:
             logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -298,7 +306,15 @@ def play_playlist_gapless(name):
     process = None # in case using Process to run the progress timer
     try:
         playlistSegment = playlist_gapless["segment"]
-        chapters = playlist_gapless["chapters"]
+        chapters = playlist_gapless["chapters"] # this chapter info is used for the progress timer in the format [[time_end, name], ...]
+        chapters_start_stamps = [] # similar to chapters, but with the start time instead of end time, use for logging
+        for i, chapter in enumerate(chapters):
+            if i == 0:
+                chapters_start_stamps.append([0, chapter[1]])
+            else:
+                # the next chapter = the previous chapter's end time
+                chapters_start_stamps.append([chapters[i-1][0], chapter[1]])
+
 
         with utils.ignore_stderr():
             faulthandler.enable()
@@ -315,6 +331,9 @@ def play_playlist_gapless(name):
             process.terminate()
         print(f"\x1b[2m    Finished playing {name} (job at {time_ns_playback})\x1b[0m")
 
+        if utils.TRIGGER_AT_STOP:
+            utils.send_ttl_pulse()
+
         # also write the status: if playback_status is < len(chapters), then it was stopped early, otherwise, the entire playlist was played
         status = ""
         if playback_status < len(chapters):
@@ -330,6 +349,15 @@ def play_playlist_gapless(name):
             logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
             logwriter.writerow([time_ns_playback, f"Started {name}", "success", "N/A"])
             logwriter.writerow([time_ns_end, f"Finished {name} | playback took {round(((time_ns_end - time_ns_playback)/1000000), 2)} ms ({status})", "success", "N/A"])
+            # Add 2 blank rows for readability
+            logwriter.writerow(["", "", "", ""])
+            logwriter.writerow(["", "", "", ""])
+            # Write the chapters start, name up to the end time (when the playback stopped)
+            logwriter.writerow(["chapter_start_ms", "chapter_name", "chapter_end_ms", f"sample_rate: {playlistSegment.frame_rate} Hz"])
+            for chapter in chapters_start_stamps[:min(playback_status+1, len(chapters))]:
+                logwriter.writerow([chapter[0], (chapter[1]).strip(), chapters[chapters_start_stamps.index(chapter)][0], ""])
+        print(f"\x1b[2m    Appended protocol to log file: ./logs/{current_log_file}\x1b[0m")
+
 
         playback_duration = (time_ns_end - time_ns_playback)/1_000_000_000
         request_duration = (time_ns_end - time_ns)/1_000_000_000
