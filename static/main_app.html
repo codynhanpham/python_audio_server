@@ -14,8 +14,9 @@
     <meta name="author" content="Cody Nhan Pham"/>
     <link rel="icon" href="/static/app_icon.png"/>
 
-    <script defer src="/static/main_app_scripts.js"></script>
     <link rel="stylesheet" href="/static/main_app_style.css">
+    <script src="/static/downloadjs.min.js"></script>
+    <script defer src="/static/main_app_scripts.js"></script>
 
 </head>
 
@@ -70,11 +71,11 @@
 
             <div id="playback-play-button">
                 <!-- Play Button -->
-                <button class="playback-button" onclick="playRequest()">▶  Play</button>
+                <button class="playback-button" onclick="playRequest()">▶ Play</button>
             </div>
             <div id="playback-stop-button" style="display: none;">
                 <!-- Stop Button -->
-                <button class="stop-button" onclick="stopAudio()">◼  Stop </button>
+                <button class="stop-button" onclick="playbackStopAudio()">◼ Stop</button>
             </div>
     
         </div>
@@ -86,7 +87,7 @@
 
                 <div>
                     <label for="generate-tonesweep-type-dropdown" class="medium-text">Type</label>
-                    <select name="generate-tonesweep-type" id="generate-tonesweep-type-dropdown" class="medium-text" onchange="updateToneSweepType(this.value)">
+                    <select name="generate-tonesweep-type" id="generate-tonesweep-type-dropdown" class="medium-text" onchange="updateToneSweepType(this.value); validateNumberSpinnerEdge(generateToneSweepEdge);">
                         <option value="tone">Tone</option>
                         <option value="sweep">Sweep</option>
                     </select>
@@ -105,18 +106,18 @@
                     <div class="number-spinner disabled-toggle" id="generate-tonesweep-freq-end-wrapper">
                         <label for="generate-tonesweep-freq-end">End Frequency (Hz)</label>
                         <div id="generate-tonesweep-freq-end-spinner" class="spinner" data-min="0" data-max="384000" data-step="14080" data-integer="false" data-scale="log2">
-                            <button type="button" class="spinner-button" value="up" onclick="updateNumberSpinner(this)">▲</button>
-                            <input type="number" class="number-field" id="generate-tonesweep-freq-end" value="14080" onblur="validateNumberSpinner(this)">
-                            <button type="button" class="down spinner-button" value="down" onclick="updateNumberSpinner(this)">▼</button>
+                            <button type="button" class="spinner-button" value="up" onclick="updateNumberSpinner(this)" disabled>▲</button>
+                            <input type="number" class="number-field" id="generate-tonesweep-freq-end" value="14080" onblur="validateNumberSpinner(this)" disabled>
+                            <button type="button" class="down spinner-button" value="down" onclick="updateNumberSpinner(this)" disabled>▼</button>
                         </div>
                     </div>
 
                     <div class="number-spinner">
                         <label for="generate-tonesweep-duration">Duration (ms)</label>
-                        <div id="generate-tonesweep-duration-spinner" class="spinner" data-min="0" data-max="604800000" data-step="500" data-integer="true">
-                            <button type="button" class="spinner-button" value="up" onclick="updateNumberSpinner(this)">▲</button>
-                            <input type="number" class="number-field" id="generate-tonesweep-duration" value="1000" onblur="validateNumberSpinner(this)">
-                            <button type="button" class="down spinner-button" value="down" onclick="updateNumberSpinner(this)">▼</button>
+                        <div id="generate-tonesweep-duration-spinner" class="spinner" data-min="1" data-max="604800000" data-step="500" data-integer="true">
+                            <button type="button" class="spinner-button" value="up" onclick="updateNumberSpinner(this); validateNumberSpinnerEdge(generateToneSweepEdge);">▲</button>
+                            <input type="number" class="number-field" id="generate-tonesweep-duration" value="1000" onblur="validateNumberSpinner(this); validateNumberSpinnerEdge(generateToneSweepEdge);">
+                            <button type="button" class="down spinner-button" value="down" onclick="updateNumberSpinner(this); validateNumberSpinnerEdge(generateToneSweepEdge);">▼</button>
                         </div>
                     </div>
 
@@ -133,20 +134,37 @@
                         <label for="generate-tonesweep-samplerate">Sample Rate (Hz)</label>
                         <div id="generate-tonesweep-samplerate-spinner" class="spinner" data-min="4000" data-max="768000" data-step="4000" data-integer="false" data-scale="log2" data-default="192000">
                             <button type="button" class="spinner-button" value="up" onclick="updateNumberSpinner(this)">▲</button>
-                            <input type="number" class="number-field" id="generate-tonesweep-samplerate" value="60" onblur="validateNumberSpinner(this)">
+                            <input type="number" class="number-field" id="generate-tonesweep-samplerate" value="192000" onblur="validateNumberSpinner(this)">
                             <button type="button" class="down spinner-button" value="down" onclick="updateNumberSpinner(this)">▼</button>
                         </div>
                     </div>
 
                     <div id="generate-tonesweep-sweepfn-dropdown-wrapper" class="disabled-toggle">
                         <label for="generate-tonesweep-sweepfn-dropdown">Sweep Function</label>
-                        <select name="generate-tonesweep-type" id="generate-tonesweep-sweepfn-dropdown">
+                        <select name="generate-tonesweep-type" id="generate-tonesweep-sweepfn-dropdown" disabled>
                             <option value="linear">Linear</option>
                             <option value="quadratic">Quadratic</option>
                             <option value="logarithmic">Logarithmic</option>
                             <option value="hyperbolic">Hyperbolic</option>
                         </select>
                     </div>
+
+                    <div class="number-spinner">
+                        <label for="generate-tonesweep-edge" title="Add a rising edge (fade in) and a falling edge (fade out) to the tone or sweep.&#10;&#13;For Tone, positive value will ADD the edge to the tone, making the total duration equals the set Duration + 2 * Edge. A negative value keeps the total duration at the set Duration, so the absolute value of |Edge| must be &lt;= Duration / 2.&#10;&#13;For Sweep, the Edge value can only by negative. Similarly, the absolute value of |Edge| must be &lt;= Duration / 2.">Edges (fade in-out) (ms) <i><strong>?</strong></i></label>
+                        <div id="generate-tonesweep-edge-spinner" class="spinner" data-step="1" data-integer="true">
+                            <button type="button" class="spinner-button" value="up" onclick="updateNumberSpinnerEdge(this)">▲</button>
+                            <input type="number" class="number-field" id="generate-tonesweep-edge" value="0" onblur="validateNumberSpinnerEdge(this)">
+                            <button type="button" class="down spinner-button" value="down" onclick="updateNumberSpinnerEdge(this)">▼</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="spacer-vertical"></div>
+
+                <div class="generate-tonesweep-buttons">
+                    <button class="playback-button low-margin" id="generate-tonesweep-play-button" onclick="generatePlayToneSweep()">▶ Play Tone</button>
+                    <button class="stop-button low-margin" style="display: none;" id="generate-tonesweep-stop-button" onclick="generateStopAudio()">◼ Stop</button>
+                    <button class="download-button low-margin" id="generate-tonesweep-download-button" onclick="downloadToneSweep()">&#x1f4e5;&#xfe0e; Download</button>
                 </div>
                 
             </div>
@@ -154,7 +172,7 @@
             <div class="spacer-vertical-thicker"></div>
 
             <div class="generate-panel">
-                <h1 class="center" id="generate-playlist">Playlist</h1>
+                <h1 class="center" id="generate-playlist">Random Playlist</h1>
                 <p>Generate a random playlist on the server. This new playlist can then be played directly from the <code>Play Files</code> tab. You can also download a copy of this playlist client-side as a keepsake.</p>
 
 
@@ -162,8 +180,7 @@
         </div>
         
         <div id="Info" class="tabcontent">
-            <h1>Info</h1>
-            <p>Click on the buttons to change the tab content:</p>
+            <pre id="file-info-data"></pre>
         </div>
     
         <div id="Settings" class="tabcontent">

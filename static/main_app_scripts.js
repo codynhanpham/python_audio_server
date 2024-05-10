@@ -1,4 +1,4 @@
-// Global variables
+// GLOBAL VARIABLES
 let AudioLists = {};
 let PlaylistLists = {};
 let LastSelection = {
@@ -19,6 +19,14 @@ if ('AbortController' in window) {
 let gaplessCheckbox = document.getElementById('gapless-checkbox-group') || null;
 let playbackTypeDropdown = document.getElementById('playback-type-dropdown') || null;
 let playbackFileDropdown = document.getElementById('playback-file-dropdown') || null;
+let generateToneSweepTypeDropdown = document.getElementById('generate-tonesweep-type-dropdown') || null;
+let generateToneSweepStartFreq = document.getElementById('generate-tonesweep-freq') || null;
+let generateToneSweepEndFreq = document.getElementById('generate-tonesweep-freq-end') || null;
+let generateToneSweepDuration = document.getElementById('generate-tonesweep-duration') || null;
+let generateToneSweepAmplitude = document.getElementById('generate-tonesweep-amplitude') || null;
+let generateToneSweepSampleRate = document.getElementById('generate-tonesweep-samplerate') || null;
+let generateToneSweepFn = document.getElementById('generate-tonesweep-sweepfn-dropdown') || null;
+let generateToneSweepEdge = document.getElementById('generate-tonesweep-edge') || null;
 
 
 
@@ -108,9 +116,9 @@ function validateNumberSpinner(element) {
 
     // Check if the new value is within the min and max range
     if (currentValue < min) {
-        currentValue = min;
+        currentValue = min || defaultValue;
     } else if (currentValue > max) {
-        currentValue = max;
+        currentValue = max || defaultValue;
     }
 
     // Always limit to 5 decimal places if currentValue is a float
@@ -149,6 +157,8 @@ function updateAllSpinnersInputAttributes() {
 }
 
 
+// GENERAL TABS FUNCTIONS
+
 function openTab(evt, tabName) {
     let i, tabcontent, tablinks;
 
@@ -181,6 +191,9 @@ function pointerScroll(elem) {
     addEventListener("pointermove", drag);
 };
 
+
+
+// ------- PLAY FILES TAB FUNCTIONS ------- //
 
 function refreshAudioPlaylistLists() {
     // Fetch /list?json=true to get the list of all available media
@@ -249,6 +262,22 @@ function updatePlaybackType(value) {
     } else if (value === 'playlist') {
         LastSelection.playlist = playbackFileDropdown.value;
     }
+
+
+    // Update the #file-info-data in the [Info] tab
+    const fileInfoDataElement = document.getElementById('file-info-data');
+    // Fetch /info/<value> to get the file info. The server response as plain text
+    const currentFile = playbackFileDropdown.value;
+    fetch(`/info/${currentFile}`)
+        .then(response => response.text())
+        .then(data => {
+            fileInfoDataElement.innerText = data;
+        
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error: ' + error + '\n\nYou may want to check the console for more details (Ctrl + Shift + I).');
+        });
 }
 
 function updatePlaybackFile(value) {
@@ -261,6 +290,21 @@ function updatePlaybackFile(value) {
     } else if (playbackType === 'playlist') {
         LastSelection.playlist = value;
     }
+
+
+    // Update the #file-info-data in the [Info] tab
+    const fileInfoDataElement = document.getElementById('file-info-data');
+    // Fetch /info/<value> to get the file info. The server response as plain text
+    fetch(`/info/${value}`)
+        .then(response => response.text())
+        .then(data => {
+            fileInfoDataElement.innerText = data;
+        
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error: ' + error + '\n\nYou may want to check the console for more details (Ctrl + Shift + I).');
+        });
 }
 
 function playRequest() {
@@ -319,7 +363,7 @@ function playRequest() {
         });
 }
 
-function stopAudio() {
+function playbackStopAudio() {
     // Add a red border to the tabcontent-wrapper to indicate that the request is being processed
     document.getElementById('tabcontent-wrapper').classList.add('red-border-highlight');
     fetch('/stop')
@@ -347,6 +391,356 @@ function stopAudio() {
             }
         });
 }
+
+
+
+// ------- GENERATE TAB FUNCTIONS ------- //
+
+function updateToneSweepType(value) {
+    // Hide/show the appropriate input fields based on the selected type
+    // If tone, there is no end frequency or sweep function
+    // If sweep, enable these again (with disabled-toggle class)
+    const endfreqWrapper = document.getElementById('generate-tonesweep-freq-end-wrapper');
+    const endfreqSpinner = document.getElementById('generate-tonesweep-freq-end-spinner');
+    const fnWrapper = document.getElementById('generate-tonesweep-sweepfn-dropdown-wrapper');
+    const playButton = document.getElementById('generate-tonesweep-play-button'); // innerText "▶ Play Tone" or "▶ Play Sweep"
+
+    if (value === 'tone') {
+        generateToneSweepEndFreq.disabled = true;
+        generateToneSweepFn.disabled = true;
+        // Add the disabled-toggle class to the wrapper to blur + disable it
+        endfreqWrapper.classList.add('disabled-toggle');
+        fnWrapper.classList.add('disabled-toggle');
+        // Also disable the buttons inside of the spinner
+        endfreqSpinner.querySelectorAll('button').forEach(button => button.disabled = true);
+        playButton.innerText = "▶ Play Tone";
+
+    } else if (value === 'sweep') {
+        generateToneSweepEndFreq.disabled = false;
+        generateToneSweepFn.disabled = false;
+        // Remove the disabled-toggle class to the wrapper
+        endfreqWrapper.classList.remove('disabled-toggle');
+        fnWrapper.classList.remove('disabled-toggle');
+        // Also enable the buttons inside of the spinner
+        endfreqSpinner.querySelectorAll('button').forEach(button => button.disabled = false);
+        playButton.innerText = "▶ Play Sweep";
+    }
+}
+
+
+function updateNumberSpinnerEdge(element) {
+    // A special case for the edge spinner, as it depends on the type of tone sweep and the duration spinner
+
+    const generateToneSweepType = generateToneSweepTypeDropdown.value;
+    let duration = parseFloat(generateToneSweepDuration.value);
+
+    // If type is Tone, edge can be any positive value, and if it's negative, the absolute value must <= Duration /2
+    // If type is Sweep, edge must be negative, and the absolute value must <= Duration /2
+
+    // This is a up or down button, indicated by this.value
+
+    let parentDiv = element.parentElement;
+
+    // Get the min, max, step, and default values,... from the parent div
+    let min = NaN; // comparison with NaN is always false
+    let max = NaN; // comparison with NaN is always false
+    let step = parseFloat(parentDiv.getAttribute('data-step')) || 1;
+    let defaultValue = parseFloat(parentDiv.getAttribute('data-default')) || min || 0;
+    let isInt = parentDiv.getAttribute('data-integer') === 'true' ? true : false;
+    let scaler = parentDiv.getAttribute('data-scale') || "linear"; // linear or log2 or logarithmic
+
+    let currentValue = parseFloat(parentDiv.querySelector('input').value) || defaultValue;
+
+
+    // Change min and max based on the type of tone sweep and the duration
+    console.log(generateToneSweepType, duration)
+    if (generateToneSweepType === 'tone') {
+        min = -duration / 2;
+    }
+    else if (generateToneSweepType === 'sweep') {
+        max = 0;
+        min = -duration / 2;
+    }
+
+    // Get the current value from the input element
+    let changeDirection = element.value === 'up' ? 1 : -1;
+    // newValue depends on the currentValue, step, and scaler: if linear, then it's the step, if log2, then either double or half, if logarithmic, then either 10x or 0.1x
+    let newValue = currentValue;
+    if (scaler === "linear") {
+        newValue += step * changeDirection;
+    } else if (scaler === "log2") {
+        newValue *= Math.pow(2, changeDirection);
+    } else if (scaler === "logarithmic") {
+        newValue *= Math.pow(10, changeDirection);
+    }
+
+    // if isInt is true, then round it to the nearest integer
+    if (isInt) {
+        newValue = Math.round(newValue);
+    }
+
+    // Check if the new value is within the min and max range
+    console.log(newValue, min, max)
+    if (newValue < min) {
+        newValue = min;
+    } else if (newValue > max) {
+        newValue = max;
+    }
+
+    // Always limit to 5 decimal places if value is a float
+    if (!Number.isInteger(newValue)) {
+        newValue = parseFloat(newValue.toFixed(5));
+    }
+
+    // Update the input element with the new value
+    parentDiv.querySelector('input').value = newValue;
+    // Update step for the parentDiv as well for the next time
+    parentDiv.setAttribute('data-step', step);
+    // Trigger the input event to format the value and update the tooltip title
+    parentDiv.querySelector('input').dispatchEvent(new Event('input'));
+}
+function validateNumberSpinnerEdge(element) {
+    const generateToneSweepType = generateToneSweepTypeDropdown.value;
+    let duration = parseFloat(generateToneSweepDuration.value);
+
+    let parentDiv = element.parentElement;
+
+    // Get the min, max, step, and default values,... from the parent div
+    let min = NaN; // comparison with NaN is always false
+    let max = NaN; // comparison with NaN is always false
+    let step = parseFloat(parentDiv.getAttribute('data-step')) || 1;
+    let defaultValue = parseFloat(parentDiv.getAttribute('data-default')) || min || 0;
+    let isInt = parentDiv.getAttribute('data-integer') === 'true' ? true : false;
+    
+    // Set the attributes of the input element only if they are numbers and not Inf
+    if (!isNaN(min) && min != this.min) {
+        element.setAttribute('min', min);
+    }
+    if (!isNaN(max) && max != this.max) {
+        element.setAttribute('max', max);
+    }
+    if (!isNaN(step) && step != this.step) {
+        element.setAttribute('step', step);
+    }
+
+    // Get the current value from the input element
+    let currentValue = parseFloat(element.value) || defaultValue;
+
+    // if the currentValue is not int and isInt is true, then round it to the nearest integer
+    if (!Number.isInteger(currentValue) && isInt) {
+        currentValue = Math.round(currentValue);
+    }
+
+    // Change min and max based on the type of tone sweep and the duration
+    if (generateToneSweepType === 'tone') {
+        min = -duration / 2;
+    }
+    else if (generateToneSweepType === 'sweep') {
+        max = 0;
+        min = -duration / 2;
+    }
+
+
+    // Check if the new value is within the min and max range
+    if (currentValue < min) {
+        currentValue = min || defaultValue;
+    } else if (currentValue > max) {
+        currentValue = max || defaultValue;
+    }
+
+    // Always limit to 5 decimal places if currentValue is a float
+    if (!Number.isInteger(currentValue)) {
+        currentValue = parseFloat(currentValue.toFixed(5));
+    }
+
+    // Update the input element with the new value, overwrite the value if it's different
+    if (element.value !== currentValue) {
+        element.value = currentValue;
+    }
+
+    // Lastly, update tooltip title
+    let tooltipTitle = "";
+    if (generateToneSweepType === 'tone') {
+        tooltipTitle = `Enter an integer, positive or negative. If negative, the absolute value must be less than or equal to half of the Duration.`;
+    } else if (generateToneSweepType === 'sweep') {
+        tooltipTitle = `Enter a negative integer. The absolute value must be less than or equal to half of the Duration.`;
+    }
+    if (element.title !== tooltipTitle) {
+        element.title = tooltipTitle;
+    }
+}
+
+
+function generatePlayToneSweep() {
+    const generateToneSweepType = generateToneSweepTypeDropdown.value;
+    const startFreq = parseFloat(generateToneSweepStartFreq.value);
+    const endFreq = parseFloat(generateToneSweepEndFreq.value);
+    const duration = parseFloat(generateToneSweepDuration.value);
+    const amplitude = parseFloat(generateToneSweepAmplitude.value);
+    const sampleRate = parseFloat(generateToneSweepSampleRate.value);
+    const fn = generateToneSweepFn.value;
+    const edge = parseFloat(generateToneSweepEdge.value);
+
+    // if any of the values are NaN, then return
+    if (isNaN(startFreq) || isNaN(duration) || isNaN(amplitude) || isNaN(sampleRate) || isNaN(edge)) {
+        return;
+    }
+
+    // Add a red border to the tabcontent-wrapper to indicate that the request is being processed
+    document.getElementById('tabcontent-wrapper').classList.add('red-border-highlight');
+    // Replace the #playback-play-button with the #playback-stop-button
+    document.getElementById('generate-tonesweep-play-button').style.display = 'none';
+    document.getElementById('generate-tonesweep-stop-button').style.display = 'block';
+
+
+    // Depends on the type of tone sweep, the URL will be different (see /docs for more info)
+
+    let url = '';
+    if (generateToneSweepType === 'tone') {
+        url = `/tone/${startFreq}/${duration}/${amplitude}/${sampleRate}?edge=${edge}`;
+    } else if (generateToneSweepType === 'sweep') {
+        url = `/sweep/${fn}/${startFreq}/${endFreq}/${duration}/${amplitude}/${sampleRate}?edge=${edge}`;
+    }
+    if (!url) {
+        return;
+    }
+
+    isPlaying = true;
+    fetch(url, { signal: playbackFetchSignal })
+        .then(response => response.json())
+        .then(data => {
+            isPlaying = false;
+            console.log(data);
+            document.getElementById('tabcontent-wrapper').classList.remove('red-border-highlight');
+            // Replace the #generate-tonesweep-stop-button with the #generate-tonesweep-play-button
+            document.getElementById('generate-tonesweep-stop-button').style.display = 'none';
+            document.getElementById('generate-tonesweep-play-button').style.display = 'block';
+        })
+        .catch(error => {
+            isPlaying = false;
+            // if abort, then the request was aborted by the user, so do not alert
+            if (error.name === 'AbortError') {
+                console.log('Request aborted. Most likely, the server has been restarted.');
+                // reset the controller and signal
+                playbackFetchController = new AbortController();
+                playbackFetchSignal = playbackFetchController.signal;
+            }
+            else {
+                console.error('Error:', error);
+                alert('Error: ' + error + '\n\nYou may want to check the console for more details (Ctrl + Shift + I).');
+            }
+            // Remove the red border from the tabcontent-wrapper to indicate that the request is done
+            document.getElementById('tabcontent-wrapper').classList.remove('red-border-highlight');
+            // Replace the #generate-tonesweep-stop-button with the #generate-tonesweep-play-button
+            document.getElementById('generate-tonesweep-stop-button').style.display = 'none';
+            document.getElementById('generate-tonesweep-play-button').style.display = 'block';
+        });
+}
+
+function generateStopAudio() {
+    // Add a red border to the tabcontent-wrapper to indicate that the request is being processed
+    document.getElementById('tabcontent-wrapper').classList.add('red-border-highlight');
+    fetch('/stop')
+        .then(response => response.json())
+        .then(data => {
+            isPlaying = false;
+            console.log(data);
+            document.getElementById('tabcontent-wrapper').classList.remove('red-border-highlight');
+            // Replace the #generate-tonesweep-stop-button with the #generate-tonesweep-play-button
+            document.getElementById('generate-tonesweep-stop-button').style.display = 'none';
+            document.getElementById('generate-tonesweep-play-button').style.display = 'block';
+        })
+        .catch(error => {
+            // Unsure if still playing or not, do not set isPlaying to false, and the if the audio is still playing, playRequest() will take care of it when the audio stops
+            // _
+
+            console.error('Error:', error);
+            alert('Error: ' + error + '\n\nYou may want to check the console for more details (Ctrl + Shift + I).');
+
+            if (!isPlaying) { // Best guestimate if the audio is still playing then keep the red border and the stop button
+                document.getElementById('tabcontent-wrapper').classList.remove('red-border-highlight');
+                // Replace the #generate-tonesweep-stop-button with the #generate-tonesweep-play-button
+                document.getElementById('generate-tonesweep-stop-button').style.display = 'none';
+                document.getElementById('generate-tonesweep-play-button').style.display = 'block';
+            }
+        });
+}
+
+
+function downloadToneSweep() {
+    // Similar to play tone/sweep, but the route is /save_tone or /save_sweep
+    const generateToneSweepType = generateToneSweepTypeDropdown.value;
+    const startFreq = parseFloat(generateToneSweepStartFreq.value);
+    const endFreq = parseFloat(generateToneSweepEndFreq.value);
+    const duration = parseFloat(generateToneSweepDuration.value);
+    const amplitude = parseFloat(generateToneSweepAmplitude.value);
+    const sampleRate = parseFloat(generateToneSweepSampleRate.value);
+    const fn = generateToneSweepFn.value;
+    const edge = parseFloat(generateToneSweepEdge.value);
+
+    // if any of the values are NaN, then return
+    if (isNaN(startFreq) || isNaN(duration) || isNaN(amplitude) || isNaN(sampleRate) || isNaN(edge)) {
+        return;
+    }
+
+    // Add a red border to the tabcontent-wrapper to indicate that the request is being processed
+    document.getElementById('tabcontent-wrapper').classList.add('red-border-highlight');
+    // Replace the add the disabled-toggle class to the #generate-tonesweep-download-button and disable it
+    document.getElementById('generate-tonesweep-download-button').classList.add('disabled-toggle');
+    document.getElementById('generate-tonesweep-download-button').disabled = true;
+
+
+    // Depends on the type of tone sweep, the URL will be different (see /docs for more info)
+
+    let url = '';
+    if (generateToneSweepType === 'tone') {
+        url = `/save_tone/${startFreq}/${duration}/${amplitude}/${sampleRate}?edge=${edge}`;
+    } else if (generateToneSweepType === 'sweep') {
+        url = `/save_sweep/${fn}/${startFreq}/${endFreq}/${duration}/${amplitude}/${sampleRate}?edge=${edge}`;
+    }
+    if (!url) {
+        return;
+    }
+
+    // The server will respond with a file download
+    fetch(url, { signal: playbackFetchSignal })
+        .then(function(resp) {
+            const header = resp.headers.get('Content-Disposition');
+            if (!header) {
+                filename = null;
+                return resp.blob();
+            }
+            const parts = header.split(';');
+            filename = parts[1].split('=')[1];
+            return resp.blob();
+        })
+        .then(function(blob) {
+            filename = filename.replace(/"/g, '');
+            // download the blob as a file with the filename
+            download(blob, filename, 'audio/wav');
+            
+            // Remove the red border from the tabcontent-wrapper to indicate that the request is done
+            document.getElementById('tabcontent-wrapper').classList.remove('red-border-highlight');
+            // Re enable the download button
+            document.getElementById('generate-tonesweep-download-button').classList.remove('disabled-toggle');
+            document.getElementById('generate-tonesweep-download-button').disabled = false;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error: ' + error + '\n\nYou may want to check the console for more details (Ctrl + Shift + I).');
+            // Remove the red border from the tabcontent-wrapper to indicate that the request is done
+            document.getElementById('tabcontent-wrapper').classList.remove('red-border-highlight');
+            // Re enable the download button
+            document.getElementById('generate-tonesweep-download-button').classList.remove('disabled-toggle');
+            document.getElementById('generate-tonesweep-download-button').disabled = false;
+        });
+}
+
+
+
+
+
+// ------- SETTINGS TAB FUNCTIONS ------- //
 
 function reloadServerFiles() {
     // Fetch /reload to reload the server files. This will also stop the audio playback server-side if successful
@@ -389,7 +783,6 @@ function reloadServerFiles() {
             }
         });
 }
-
 
 function restartAudioServer() {
     // Fetch /restart?restart=true to restart the server
@@ -529,6 +922,11 @@ function shutdownAudioServer() {
 }
 
 
+
+
+
+// ------- KEYBOARD SHORTCUTS ------- //
+
 // Listen for "/" key to toggle #title-info display
 window.addEventListener('keydown', function(e) {
     if (e.key === '/') {
@@ -537,11 +935,23 @@ window.addEventListener('keydown', function(e) {
     }
 }, false);
 
+
+
+// ------- MAIN FUNCTION ON START UP ------- //
+
 window.onload = function() {
     // Update known elements since the page has loaded
     gaplessCheckbox = document.getElementById('gapless-checkbox-group');
     playbackTypeDropdown = document.getElementById('playback-type-dropdown');
     playbackFileDropdown = document.getElementById('playback-file-dropdown');
+    generateToneSweepTypeDropdown = document.getElementById('generate-tonesweep-type-dropdown');
+    generateToneSweepStartFreq = document.getElementById('generate-tonesweep-freq');
+    generateToneSweepEndFreq = document.getElementById('generate-tonesweep-freq-end');
+    generateToneSweepDuration = document.getElementById('generate-tonesweep-duration');
+    generateToneSweepAmplitude = document.getElementById('generate-tonesweep-amplitude');
+    generateToneSweepSampleRate = document.getElementById('generate-tonesweep-samplerate');
+    generateToneSweepFn = document.getElementById('generate-tonesweep-sweepfn-dropdown');
+    generateToneSweepEdge = document.getElementById('generate-tonesweep-edge');
 
 
     // Fetch /list?json=true to get the list of all available media
@@ -569,6 +979,23 @@ window.onload = function() {
                 option.text = 'Audio file or Playlist names will show up here!';
                 playbackFileDropdown.appendChild(option);
             }
+
+            // Update the #file-info-data in the [Info] tab
+            const fileInfoDataElement = document.getElementById('file-info-data');
+            // Fetch /info/<value> to get the file info. The server response as plain text
+            const currentFile = playbackFileDropdown.value;
+            if (currentFile) {
+                fetch(`/info/${currentFile}`)
+                    .then(response => response.text())
+                    .then(data => {
+                        fileInfoDataElement.innerText = data;
+                    
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error: ' + error + '\n\nYou may want to check the console for more details (Ctrl + Shift + I).');
+                    });
+            }
         })
         .catch(error => {
             console.error('Error:', error);
@@ -583,4 +1010,5 @@ window.onload = function() {
 
     // Update the input attributes of all number spinners
     updateAllSpinnersInputAttributes();
+    validateNumberSpinnerEdge(generateToneSweepEdge);
 }
