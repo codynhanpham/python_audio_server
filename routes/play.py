@@ -42,10 +42,13 @@ def play_audio(name):
     
     # Get the ?time= query string, else default to nothing
     client_time = request.args.get('time') or ""
+    signalmode = request.args.get('mode') or "sender"
 
     # create logs/ directory if it doesn't exist
     if not os.path.exists("logs/"):
         os.makedirs("logs/")
+
+    abort = False
 
     source = AUDIO[name]["audio"]
     try:
@@ -53,23 +56,43 @@ def play_audio(name):
 
         with utils.ignore_stderr():
             faulthandler.enable()
-            utils.send_ttl_pulse()
-            sink = _play_with_simpleaudio(source)
-            timestart = time.time_ns()
-            print(f"\x1b[2m    {timestart}: Playing {name}...\x1b[0m")
-            sink.wait_done()
+            if signalmode == "receiver":
+                utils.wait_for_ttl_pulse()
+                if utils.PLAYLIST_ABORT or utils.SERIAL_ABORT:
+                    abort = True
+                    utils.PLAYLIST_ABORT = False
+                    utils.SERIAL_ABORT = False
+            elif signalmode == "sender" or utils.ALWAYS_TRIGGER_START:
+                utils.send_ttl_pulse()
+
+            if not abort:
+                sink = _play_with_simpleaudio(source)
+                timestart = time.time_ns()
+                print(f"\x1b[2m    {timestart}: Playing {name}...\x1b[0m")
+                sink.wait_done()
+            else:
+                timestart = time.time_ns()
+                print(f"\x1b[2m    {timestart}: Audio playback aborted\x1b[0m")
         print(f"\x1b[2m    Finished (job at {timestart})\x1b[0m")
         
         if utils.TRIGGER_AT_STOP:
             utils.send_ttl_pulse()
 
-        # write to log file
-        with open("logs/" + current_log_file, 'a', newline='') as csvfile:
-            logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            logwriter.writerow([timestart, name, "success", client_time])
+        # The /stop can be called while the playlist is playing, so reset the flags here as well
+        if utils.PLAYLIST_ABORT or utils.SERIAL_ABORT:
+            utils.PLAYLIST_ABORT = False
+            utils.SERIAL_ABORT = False
 
-        print(f"\x1b[2m    Appended to log file: ./logs/{current_log_file}\x1b[0m")
-        return jsonify(message=f"At {timestart}: Played {name}"), 200
+        if not abort:
+            # write to log file
+            with open("logs/" + current_log_file, 'a', newline='') as csvfile:
+                logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                logwriter.writerow([timestart, name, "success", client_time])
+
+            print(f"\x1b[2m    Appended to log file: ./logs/{current_log_file}\x1b[0m")
+            return jsonify(message=f"At {timestart}: Played {name}"), 200
+        else:
+            return jsonify(message=f"Stopped listening for TTL trigger"), 200
     except Exception as e:
         timestart = time.time_ns()
         print(f"\x1b[2m\x1b[31m    Error occurred: {e}\x1b[0m")

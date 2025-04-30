@@ -535,6 +535,22 @@ input:checked + .slider:before {
 }
 
 
+#signalmode-checkbox-group {
+    padding: 0.4rem 0.7rem;
+    border: solid 1px var(--tab-border-color);
+    border-radius: calc(0.45* var(--font-size));
+}
+#signalmode-checkbox-group input + .slider {
+    background-color: #dfbf90;
+}
+#signalmode-checkbox-group input:checked + .slider {
+    background-color: #a9df90;
+}
+#signalmode-checkbox-group input:checked + .slider:before {
+    box-shadow: none;
+}
+
+
 
 /* Stop button */
 .stop-button {

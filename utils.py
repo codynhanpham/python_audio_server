@@ -22,12 +22,14 @@ PLAYLIST = {}
 AUDIO = {}
 SHUTDOWN_TOKENS = []
 PLAYLIST_ABORT = False
+SERIAL_ABORT = False
 
 config = dotenv_values(".env")
 BAUDRATE = int(config.get("BAUDRATE", 9600))
 SERIAL_PORT = config.get("SERIAL_PORT", "COM3")
 PULSE_BYTE_COUNT = int(config.get("PULSE_BYTE_COUNT", 1))
-TRIGGER_AT_STOP = config.get("TRIGGER_AT_STOP", "False").lower() == "true" # trigger TTL pulse at the end of the playlist, if True
+TRIGGER_AT_STOP = config.get("TRIGGER_AT_STOP", "False").lower() == "true" # trigger TTL pulse at the end of the audio, if True
+ALWAYS_TRIGGER_START = config.get("ALWAYS_TRIGGER_START", "False").lower() == "true" # always trigger TTL pulse at the start of the audio, if True
 
 def start_serial_device():
     global SerialDevice
@@ -673,6 +675,24 @@ def send_ttl_pulse():
         print("\x1b[2m\x1b[34m    Sent TTL pulse to the Serial device ({} bytes)\x1b[0m".format(sentlength))
     else:
         print("\x1b[2m\x1b[33m    WARNING: No TTL device found. TTL pulse not sent.\x1b[0m")
+
+
+def wait_for_ttl_pulse():
+    SERIAL_DEVICE.reset_input_buffer()
+    # wait for a TTL pulse from the TTL device
+    if SERIAL_DEVICE is not None:
+        print("\x1b[2m\x1b[34m    Waiting for TTL pulse from the Serial device...\x1b[0m")
+        while True:
+            if SERIAL_DEVICE.in_waiting > 0:
+                print("\x1b[2m\x1b[34m    TTL pulse received from the Serial device\x1b[0m")
+                SERIAL_DEVICE.reset_input_buffer()
+                break
+
+            if SERIAL_ABORT:
+                print("\x1b[2m\x1b[34m    Received abort signal. Aborting TTL pulse wait.\x1b[0m")
+                break
+    else:
+        print("\x1b[2m\x1b[33m    WARNING: No TTL device found. TTL pulse not received.\x1b[0m")
 
 
 

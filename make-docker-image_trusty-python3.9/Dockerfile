@@ -32,23 +32,23 @@ RUN apt-get update && apt-get install -y \
     libtbb2 \
     libav-tools
 
-# https://ftp.openssl.org/source/openssl-1.1.1q.tar.gz
+# https://github.com/openssl/openssl/releases/download/OpenSSL_1_1_1w/openssl-1.1.1w.tar.gz
 RUN mkdir openssl && \
     cd openssl && \
-    wget --no-check-certificate https://ftp.openssl.org/source/openssl-1.1.1q.tar.gz && \
-    tar -xf openssl-1.1.1q.tar.gz && \
-    cd openssl-1.1.1q && \
+    wget --no-check-certificate https://github.com/openssl/openssl/releases/download/OpenSSL_1_1_1w/openssl-1.1.1w.tar.gz && \
+    tar -xf openssl-1.1.1w.tar.gz && \
+    cd openssl-1.1.1w && \
     ./config --prefix=$HOME/openssl --openssldir=$HOME/openssl shared zlib  && \
     make && \
     make && \
     make install
 
 # Set up pyenv
-ENV PYTHON_VERSION 3.9.18
+ENV PYTHON_VERSION=3.9.18
 RUN apt-get update && apt-get install -y curl
 # Set-up necessary Env vars for PyEnv
-ENV PYENV_ROOT /root/.pyenv
-ENV PATH $PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH
+ENV PYENV_ROOT=/root/.pyenv
+ENV PATH=$PYENV_ROOT/shims:$PYENV_ROOT/bin:$PATH
 
 # Install pyenv
 RUN set -ex \

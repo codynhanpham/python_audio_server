@@ -216,6 +216,15 @@ function refreshAudioPlaylistLists() {
 }
 
 
+function toggleSignalMode(element) {
+    isReceiver = element.checked; // if checked, then it's a receiver, else it's a sender
+    let playbutton = document.getElementById('playback-play-button');
+    playbutton = playbutton.querySelector('.playback-button');
+    playbutton.innerText = isReceiver ? "▶ Listen for Trigger" : "▶ Play";
+}
+
+
+
 function updatePlaybackType(value) {
     // Replace the content of the #playback-file-dropdown select element with the appropriate list
     playbackFileDropdown.innerHTML = '';
@@ -311,6 +320,12 @@ function playRequest() {
     let playbackType = playbackTypeDropdown.value;
     let playbackFile = playbackFileDropdown.value;
     let withGapless = document.getElementById('gapless-checkbox').checked;
+    let signalmode = document.getElementById('signalmode-checkbox').checked; // if checked, then it's a receiver, else it's a sender
+    if (signalmode) {
+        signalmode = 'receiver';
+    } else {
+        signalmode = 'sender';
+    }
 
     if (!playbackType || !playbackFile) {
         return;
@@ -325,9 +340,9 @@ function playRequest() {
         
     // GET /<type>/<file>?time=<time in nanosec>
     // if type is playlist, then also check for gapless: /playlist/<file>?time=<time in nanosec> or /playlist/gapless/<file>?time=<time in nanosec>
-    let url = `/${playbackType}/${playbackFile}?time=${Date.now() * 1000000}`;
+    let url = `/${playbackType}/${playbackFile}?time=${Date.now() * 1000000}&mode=${signalmode}`;
     if (playbackType === 'playlist' && withGapless) {
-        url = `/playlist/gapless/${playbackFile}?time=${Date.now() * 1000000}`;
+        url = `/playlist/gapless/${playbackFile}?time=${Date.now() * 1000000}&mode=${signalmode}`;
     }
     
     isPlaying = true;

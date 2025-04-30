@@ -150,6 +150,9 @@ if __name__ == '__main__':
     from routes.stop import stop_blueprint
     app.register_blueprint(stop_blueprint)
 
+    # route to /send_ttl_pulse to send a TTL pulse
+    from routes.ttl import ttl_blueprint
+    app.register_blueprint(ttl_blueprint)
 
 
     # Finally, route to /app to serve the GUI

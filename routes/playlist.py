@@ -142,10 +142,15 @@ def play_playlist(name):
     # The first row of the log file is the request name and timestamp + client timestamp if it exists
     # Get the ?time= query string, else default to nothing
     client_time = request.args.get('time') or ""
+    signalmode = request.args.get('mode') or "sender"
+
     with open("logs/" + current_log_file, 'a', newline='') as csvfile:
         logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         logwriter.writerow([time.time_ns(), f"Received /playlist/{name}", "success", client_time])
     print(f"\x1b[2m    Appended request info to log file: ./logs/{current_log_file}\x1b[0m")
+
+    # Save the triggered time to the log file if applicable
+    trigger_time = "N/A"
 
     log_data = ""
     pulsed_start = False
@@ -156,13 +161,25 @@ def play_playlist(name):
         sink = None
         abort = False
         time_ns_playback = time.time_ns()
-        utils.send_ttl_pulse()
+        if signalmode == "receiver":
+            utils.wait_for_ttl_pulse()
+            trigger_time = time.time_ns()
+            # write to log file
+            with open("logs/" + current_log_file, 'a', newline='') as csvfile:
+                logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                logwriter.writerow([trigger_time, f"TTL Triggered {name}", "success", "N/A"])
+            print(f"\x1b[2m    Appended to log file: ./logs/{current_log_file}\x1b[0m")
+            log_data += f"{trigger_time},TTL Triggered {name},success,N/A\n"
+        elif signalmode == "sender" or utils.ALWAYS_TRIGGER_START:
+            utils.send_ttl_pulse()
+            
         pulsed_start = True
         print(f"\x1b[32m    {time_ns_playback}: Starting playlist {name} ({len(playlist)} steps)...\x1b[0m")
         for step in playlist:
-            if utils.PLAYLIST_ABORT:
+            if utils.PLAYLIST_ABORT or utils.SERIAL_ABORT:
                 abort = True
                 utils.PLAYLIST_ABORT = False # reset the flag
+                utils.SERIAL_ABORT = False # reset the flag
                 break
 
             if step["type"] == "audio":
@@ -231,9 +248,12 @@ def play_playlist(name):
 
         playback_duration = (time.time_ns() - time_ns_playback)/1_000_000_000
         request_duration = (time.time_ns() - time_ns)/1_000_000_000
-        print(f"    --> At {time_ns_playback} started playlist {name} ({len(playlist)} audio files / steps). Playback took {playback_duration} seconds ({status}). Total time since request: {request_duration} seconds.\n\n")
 
-        return jsonify(message=f"At {time_ns_playback} started playlist {name} ({len(playlist)} audio files / steps). Playback took {playback_duration} seconds ({status}). Total time since request: {request_duration} seconds."), 200
+        infoTrigger = f" Total time since TTL Triggered: {round(((time.time_ns() - trigger_time)/1000000000), 5)} seconds" if trigger_time != "N/A" else ""
+
+        print(f"    --> At {time_ns_playback} started playlist {name} ({len(playlist)} audio files / steps). Playback took {playback_duration} seconds ({status}). Total time since request: {request_duration} seconds.{infoTrigger}\n\n")
+
+        return jsonify(message=f"At {time_ns_playback} started playlist {name} ({len(playlist)} audio files / steps). Playback took {playback_duration} seconds ({status}). Total time since request: {request_duration} seconds.{infoTrigger}"), 200
     except Exception as e:
         print(f"\x1b[2m\x1b[31m    Error occurred: {e}\x1b[0m")
         if pulsed_start and utils.TRIGGER_AT_STOP:
@@ -297,11 +317,17 @@ def play_playlist_gapless(name):
     # The first row of the log file is the request name and timestamp + client timestamp if it exists
     # Get the ?time= query string, else default to nothing
     client_time = request.args.get('time') or ""
+    signalmode = request.args.get('mode') or "sender"
+
     with open("logs/" + current_log_file, 'a', newline='') as csvfile:
         logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         logwriter.writerow([time.time_ns(), f"Received /playlist/gapless/{name}", "success", client_time])
     print(f"\x1b[2m    Appended request info to log file: ./logs/{current_log_file}\x1b[0m")
 
+    # Save the triggered time to the log file if applicable
+    trigger_time = "N/A"
+
+    abort = False
 
     process = None # in case using Process to run the progress timer
     try:
@@ -319,24 +345,50 @@ def play_playlist_gapless(name):
         with utils.ignore_stderr():
             faulthandler.enable()
             # play(playlistSegment) # opt for simpleaudio instead of pydub's play instead, so the playback is non-blocking
-            utils.send_ttl_pulse()
-            sink = _play_with_simpleaudio(playlistSegment) # this is non-blocking (using simpleaudio)
-            time_ns_playback = time.time_ns() # immediately after the audio output starts
-            print(f"\x1b[32m    {time_ns_playback}: Playing {name}...\x1b[0m")
-            playback_status = utils.playlist_progress_timer(sink, len(playlistSegment), chapters, "", 50, time_ns_playback//1_000_000)
-            sink.wait_done()
-            time_ns_end = time.time_ns()
+            
+            if signalmode == "receiver":
+                utils.wait_for_ttl_pulse()
+                trigger_time = time.time_ns()
+                if utils.PLAYLIST_ABORT or utils.SERIAL_ABORT:
+                    abort = True
+                    utils.PLAYLIST_ABORT = False
+                    utils.SERIAL_ABORT = False
+            elif signalmode == "sender" or utils.ALWAYS_TRIGGER_START:
+                utils.send_ttl_pulse()
+
+            if not abort:
+                sink = _play_with_simpleaudio(playlistSegment) # this is non-blocking (using simpleaudio)
+                time_ns_playback = time.time_ns() # immediately after the audio output starts
+                print(f"\x1b[32m    {time_ns_playback}: Playing {name}...\x1b[0m")
+                playback_status = utils.playlist_progress_timer(sink, len(playlistSegment), chapters, "", 50, time_ns_playback//1_000_000)
+                sink.wait_done()
+                time_ns_end = time.time_ns()
+            else:
+                time_ns_end = time.time_ns()
+                time_ns_playback = time_ns_end
+                playback_status = -1
+                
         # terminate the progress timer
         if process and process.is_alive():
             process.terminate()
-        print(f"\x1b[2m    Finished playing {name} (job at {time_ns_playback})\x1b[0m")
+        if not abort:
+            print(f"\x1b[2m    Finished playing {name} (job at {time_ns_playback})\x1b[0m")
+            # The /stop can be called while the playlist is playing, so reset the flags here as well
+            if utils.PLAYLIST_ABORT or utils.SERIAL_ABORT:
+                utils.PLAYLIST_ABORT = False
+                utils.SERIAL_ABORT = False
+        else:
+            print(f"\x1b[2m    Playlist playback aborted\x1b[0m")
+            # The /stop can be called while the playlist is playing, so reset the flags here as well
+            utils.PLAYLIST_ABORT = False
+            utils.SERIAL_ABORT = False
 
         if utils.TRIGGER_AT_STOP:
             utils.send_ttl_pulse()
 
         # also write the status: if playback_status is < len(chapters), then it was stopped early, otherwise, the entire playlist was played
         status = ""
-        if playback_status < len(chapters):
+        if abort or playback_status < len(chapters):
             print(f"\x1b[2m    (Playback was stopped early)\x1b[0m")
             status = "stopped early"
         else:
@@ -347,8 +399,13 @@ def play_playlist_gapless(name):
         # write to log file the playback duration
         with open("logs/" + current_log_file, 'a', newline='') as csvfile:
             logwriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            logwriter.writerow([time_ns_playback, f"Started {name}", "success", "N/A"])
-            logwriter.writerow([time_ns_end, f"Finished {name} | playback took {round(((time_ns_end - time_ns_playback)/1000000), 2)} ms ({status})", "success", "N/A"])
+            if trigger_time != "N/A":
+                logwriter.writerow([trigger_time, f"TTL Triggered {name}", "success", "N/A"])
+            if not abort:
+                logwriter.writerow([time_ns_playback, f"Started {name}", "success", "N/A"])
+                logwriter.writerow([time_ns_end, f"Finished {name} | playback took {round(((time_ns_end - time_ns_playback)/1000000), 2)} ms ({status})", "success", "N/A"])
+            else:
+                logwriter.writerow([time_ns_end, f"playlist playback aborted", "success", "N/A"])
             # Add 2 blank rows for readability
             logwriter.writerow(["", "", "", ""])
             logwriter.writerow(["", "", "", ""])
@@ -358,13 +415,18 @@ def play_playlist_gapless(name):
                 logwriter.writerow([chapter[0], (chapter[1]).strip(), chapters[chapters_start_stamps.index(chapter)][0], ""])
         print(f"\x1b[2m    Appended protocol to log file: ./logs/{current_log_file}\x1b[0m")
 
+        if abort:
+            print(f"    --> TTL Trigger aborted, playback was ignored\n\n")
+            return jsonify(message=f"TTL Trigger aborted, playback was ignored"), 200
 
         playback_duration = (time_ns_end - time_ns_playback)/1_000_000_000
         request_duration = (time_ns_end - time_ns)/1_000_000_000
 
-        print(f"    --> At {time_ns_playback} started (gapless) playlist {name} ({len(playlist)} audio files / steps). Playback took {playback_duration} seconds ({status}). Total time since request: {request_duration} seconds.\n\n")
+        infoTrigger = f" Total time since TTL Triggered: {round(((time_ns_end - trigger_time)/1000000000), 5)} seconds" if trigger_time != "N/A" else ""
 
-        return jsonify(message=f"At {time_ns_playback} started (gapless) playlist {name} ({len(playlist)} audio files / steps). Playback took {playback_duration} seconds ({status}). Total time since request: {request_duration} seconds."), 200
+        print(f"    --> At {time_ns_playback} started (gapless) playlist {name} ({len(playlist)} audio files / steps). Playback took {playback_duration} seconds ({status}). Total time since request: {request_duration} seconds.{infoTrigger}\n\n")
+
+        return jsonify(message=f"At {time_ns_playback} started (gapless) playlist {name} ({len(playlist)} audio files / steps). Playback took {playback_duration} seconds ({status}). Total time since request: {request_duration} seconds.{infoTrigger}"), 200
     
     except Exception as e:
         if process and process.is_alive():

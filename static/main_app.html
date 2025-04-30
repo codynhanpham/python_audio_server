@@ -53,6 +53,15 @@
                         <option value="playlist" class="medium-text">Playlists</option>
                     </select>
                 </div>
+                <div class="checkbox-group" id="signalmode-checkbox-group" title="On Sender mode, the server will send a TTL trigger then immediately playback the selected audio.&#10;On Receiver mode, the server will start listening for an external TTL signal, and only play the selected audio after receiving the TTL pulse.">
+                    <span>Mode:</span>
+                    <label for="signalmode-checkbox">Sender</label>
+                    <label for="signalmode-checkbox" class="switch">
+                        <input type="checkbox" name="signalmode-checkbox" id="signalmode-checkbox" onchange="toggleSignalMode(this)" />
+                        <div class="slider round"></div>
+                    </label>
+                    <label for="signalmode-checkbox">Receiver</label>
+                </div>
                 <button class="client-refresh-button" onclick="refreshAudioPlaylistLists()" title="If you recently restart or re-launch the audio server and the current GUI list does not match what you are expecting, click to Refresh the list.&#10;If the files still does not show up, or if you changed the file content on the server, try Settings > Reload instead.">↻  Refresh</button>
             </div>
             
